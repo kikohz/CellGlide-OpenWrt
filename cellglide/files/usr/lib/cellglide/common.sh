@@ -1,4 +1,6 @@
 # shellcheck shell=sh
+# CG_* constants are used by the files that source this one
+# shellcheck disable=SC2034
 # Pure helpers for the cellglide daemon and command line: they only print text.
 
 CG_MARK=0x10000

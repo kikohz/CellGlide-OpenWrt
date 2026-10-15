@@ -15,9 +15,12 @@ assert_eq() {
 	fi
 }
 
+# shellcheck source=/dev/null
 . "$FILES/usr/lib/cellglide/common.sh"
+# shellcheck source=/dev/null
 [ -f "$FILES/usr/lib/cellglide/net.sh" ] && . "$FILES/usr/lib/cellglide/net.sh"
 for test in ./test_*.sh; do
+	# shellcheck source=/dev/null
 	. "$test"
 done
 echo "$PASSED passed, $FAILED failed"

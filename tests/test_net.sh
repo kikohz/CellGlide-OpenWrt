@@ -1,4 +1,6 @@
 # shellcheck shell=sh
+# test_* functions are called by run.sh, not from here
+# shellcheck disable=SC2317,SC2329
 # Sourced by run.sh. Records commands instead of running them.
 
 recorded() {

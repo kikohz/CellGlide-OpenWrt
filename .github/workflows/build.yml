@@ -1,0 +1,63 @@
+# Lints and tests the OpenWrt package, then builds it with the official SDK:
+# an .apk for OpenWrt 25.12 and an .ipk for 24.10. The package is
+# architecture-independent, so one x86-64 SDK per release is enough.
+name: OpenWrt package
+
+on:
+  push:
+    paths: ['Router/OpenWrt/**', '.github/workflows/openwrt.yml']
+    tags: ['openwrt-*']
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install busybox
+        run: sudo apt-get update && sudo apt-get install -y busybox
+      - name: shellcheck
+        run: |
+          cd Router/OpenWrt
+          shellcheck -s sh -e SC3043 cellglide/files/usr/lib/cellglide/*.sh \
+            cellglide/files/usr/libexec/cellglide/daemon cellglide/files/usr/sbin/cellglide tests/*.sh
+          shellcheck -s sh -e SC3043,SC2034,SC2154 cellglide/files/etc/init.d/cellglide
+      - name: Tests (busybox ash)
+        run: busybox sh Router/OpenWrt/tests/run.sh
+
+  build:
+    needs: check
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - release: '25.12'
+            arch: x86-64-openwrt-25.12
+            ext: apk
+          - release: '24.10'
+            arch: x86-64-openwrt-24.10
+            ext: ipk
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build with the OpenWrt SDK
+        uses: openwrt/gh-action-sdk@v11
+        env:
+          ARCH: ${{ matrix.arch }}
+          FEED_DIR: ${{ github.workspace }}/Router/OpenWrt
+          FEEDNAME: cellglide
+          PACKAGES: cellglide
+      - name: Collect the package
+        run: |
+          mkdir -p out
+          find bin/packages -name "cellglide*.${{ matrix.ext }}" -exec cp {} out/ \;
+          ls -l out
+          test -n "$(ls out)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cellglide-openwrt-${{ matrix.release }}
+          path: out/*
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/openwrt-')
+        uses: softprops/action-gh-release@v3
+        with:
+          files: out/*

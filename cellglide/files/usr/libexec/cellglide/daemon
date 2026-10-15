@@ -2,8 +2,11 @@
 # Watches the iPhone and moves the chosen devices between it and the broadband line.
 # Run by procd (/etc/init.d/cellglide); SIGTERM undoes every change it made.
 
+# shellcheck source=/dev/null
 . /lib/functions.sh
+# shellcheck source=/dev/null
 . /usr/lib/cellglide/common.sh
+# shellcheck source=/dev/null
 . /usr/lib/cellglide/net.sh
 
 RUN=/var/run/cellglide

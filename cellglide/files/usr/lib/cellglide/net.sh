@@ -27,12 +27,12 @@ cg_quiet() {
 cg_setup() {
 	local fallback="$1" lan4="$2" lan6="$3" family prefix rc=0
 	for family in 4 6; do
-		cg_quiet ip -$family route flush table "$CG_TABLE"
+		cg_quiet ip -"$family" route flush table "$CG_TABLE"
 		if [ "$fallback" = block ]; then
-			cg_run ip -$family route add unreachable default metric 4000000000 table "$CG_TABLE" || rc=1
+			cg_run ip -"$family" route add unreachable default metric 4000000000 table "$CG_TABLE" || rc=1
 		fi
-		cg_quiet ip -$family rule del priority "$CG_TABLE"
-		cg_run ip -$family rule add fwmark "$CG_MARK/$CG_MARK" lookup "$CG_TABLE" priority "$CG_TABLE" || rc=1
+		cg_quiet ip -"$family" rule del priority "$CG_TABLE"
+		cg_run ip -"$family" rule add fwmark "$CG_MARK/$CG_MARK" lookup "$CG_TABLE" priority "$CG_TABLE" || rc=1
 	done
 	for prefix in $lan4; do
 		cg_run ip -4 route add "$prefix" dev "$CG_LAN" table "$CG_TABLE" || rc=1
@@ -47,7 +47,7 @@ cg_setup() {
 cg_tunnel_up() {
 	local family rc=0
 	for family in 4 6; do
-		cg_run ip -$family route replace default dev "$CG_TUN" table "$CG_TABLE" || rc=1
+		cg_run ip -"$family" route replace default dev "$CG_TUN" table "$CG_TABLE" || rc=1
 	done
 	return $rc
 }
@@ -55,15 +55,15 @@ cg_tunnel_up() {
 cg_tunnel_down() {
 	local family
 	for family in 4 6; do
-		cg_quiet ip -$family route del default dev "$CG_TUN" table "$CG_TABLE"
+		cg_quiet ip -"$family" route del default dev "$CG_TUN" table "$CG_TABLE"
 	done
 }
 
 cg_teardown() {
 	local family
 	for family in 4 6; do
-		cg_quiet ip -$family rule del priority "$CG_TABLE"
-		cg_quiet ip -$family route flush table "$CG_TABLE"
+		cg_quiet ip -"$family" rule del priority "$CG_TABLE"
+		cg_quiet ip -"$family" route flush table "$CG_TABLE"
 	done
 	cg_quiet nft delete table inet cellglide
 }
