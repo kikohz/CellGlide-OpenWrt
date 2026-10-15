@@ -11,7 +11,7 @@ define Package/cellglide
   CATEGORY:=Network
   TITLE:=Route chosen LAN devices through an iPhone running CellGlide
   URL:=https://cellglide.com
-  DEPENDS:=+usbmuxd +libusbmuxd-utils +libimobiledevice-utils +hev-socks5-tunnel +ucode +ucode-mod-socket
+  DEPENDS:=+usbmuxd +libusbmuxd-utils +libimobiledevice-utils +hev-socks5-tunnel +kmod-tun +ucode +ucode-mod-socket
   PKGARCH:=all
 endef
 

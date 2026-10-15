@@ -30,6 +30,19 @@ start_service() {
 	procd_close_instance
 }
 
+# procd SIGKILLs the daemon if it outlives term_timeout, which skips its own cleanup.
+service_stopped() {
+	local pid
+	# shellcheck source=/dev/null
+	. /usr/lib/cellglide/common.sh
+	# shellcheck source=/dev/null
+	. /usr/lib/cellglide/net.sh
+	for pid in $(pgrep -f "hev-socks5-tunnel /var/run/cellglide/hev.yml"); do
+		kill "$pid" 2>/dev/null
+	done
+	cg_teardown
+}
+
 service_triggers() {
 	procd_add_reload_trigger cellglide
 }

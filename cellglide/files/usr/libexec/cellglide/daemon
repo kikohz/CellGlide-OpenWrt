@@ -65,10 +65,17 @@ hev_alive() {
 
 # A previous instance killed with SIGKILL leaves its hev (and cgtun) behind.
 kill_stale_hev() {
-	local pid
+	local pid killed="" tries=0
 	for pid in $(pgrep -f "hev-socks5-tunnel $RUN/hev.yml"); do
-		kill "$pid" 2>/dev/null
+		kill "$pid" 2>/dev/null && killed=1
 	done
+	# Give the kernel time to drop cgtun, or the next hev cannot create it.
+	if [ -n "$killed" ]; then
+		while [ -d "/sys/class/net/$CG_TUN" ] && [ "$tries" -lt 6 ]; do
+			sleep 0.5
+			tries=$((tries + 1))
+		done
+	fi
 }
 
 go_up() {
@@ -88,14 +95,25 @@ go_up() {
 		return 1
 	fi
 	cg_setup "$FALLBACK" "$(lan_routes 4)" "$(lan_routes 6)" || log "cg_setup reported failures"
-	cg_tunnel_up || log "cg_tunnel_up reported failures"
-	load_nft 1
+	if ! cg_tunnel_up; then
+		ERROR="could not route through the tunnel"
+		log "cg_tunnel_up failed"
+		hev_stop
+		return 1
+	fi
 	"$PROBE" udp "$LOCAL_PORT"
 	case $? in
 	0) UDP=yes ;;
 	3) UDP=no ;;
 	*) UDP=unknown ;;
 	esac
+	# Without UDP-in-TCP on the iPhone the DNS redirect would break name resolution,
+	# so DNS then stays on the router's dnsmasq.
+	if [ "$UDP" = yes ]; then
+		load_nft 1
+	else
+		load_nft 0
+	fi
 	log "using the iPhone for:${MACS:- no devices yet}"
 }
 
@@ -118,7 +136,7 @@ trap cleanup INT TERM
 
 mkdir -p "$RUN"
 kill_stale_hev
-cg_setup "$FALLBACK" "$(lan_routes 4)" "$(lan_routes 6)"
+cg_setup "$FALLBACK" "$(lan_routes 4)" "$(lan_routes 6)" || log "initial cg_setup reported failures"
 load_nft 0
 SINCE=$(date +%s)
 write_status
