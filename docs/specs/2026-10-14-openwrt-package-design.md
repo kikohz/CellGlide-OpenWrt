@@ -1,6 +1,6 @@
 # OpenWrt 软件包：指定设备经 iPhone 上网 设计
 
-日期：2026-10-14　状态：待确认　前提：iOS CellGlide 2.3（hev 的 UDP 走 TCP，已合并进 main，未发布）
+日期：2026-10-14　状态：已确认　前提：iOS CellGlide 2.3（hev 的 UDP 走 TCP，已合并进 main，未发布）
 
 ## 背景
 
@@ -33,7 +33,7 @@
 
 纯脚本包，没有需要编译的代码，架构是 `all`，同一个包能装在所有路由器上。
 
-依赖都在 OpenWrt 官方源里：`usbmuxd`、`libusbmuxd-utils`（提供 `iproxy`）、`libimobiledevice-utils`（提供 `idevicepair`、`idevice_id`）、`hev-socks5-tunnel`。
+依赖都在 OpenWrt 官方源里：`usbmuxd`、`libusbmuxd-utils`（提供 `iproxy`）、`libimobiledevice-utils`（提供 `idevicepair`、`idevice_id`）、`hev-socks5-tunnel`，以及 `ucode` 和 `ucode-mod-socket`（SOCKS 握手探测用；BusyBox 的 `nc` 没有超时选项，做不了）。
 
 | 文件 | 作用 |
 |---|---|
@@ -41,6 +41,7 @@
 | `/etc/init.d/cellglide` | procd 服务：开机启动，管理守护脚本 |
 | `/usr/libexec/cellglide/daemon` | 守护脚本：检测手机，启停 iproxy 和 hev，维护路由 |
 | `/usr/sbin/cellglide` | 命令行：添加或删除设备、查看状态、配对 |
+| `/usr/libexec/cellglide/probe` | ucode 小脚本：SOCKS5 握手探测，以及检测 App 是否支持 UDP 走 TCP |
 | `/usr/share/nftables.d/chain-pre/forward/cellglide.nft` | fw4 扩展：放行 `br-lan → cgtun`（见“防火墙”） |
 
 打标记和 DNS 改写放在独立的 `inet cellglide` 表里，由守护脚本直接用 `nft` 建立和删除。fw4 重载只会清空它自己的 `inet fw4` 表，不会动这张表。
@@ -56,6 +57,7 @@ config cellglide 'main'
 	option local_port '19876'       # iproxy 在路由器本机监听的端口
 	option fallback 'broadband'     # 手机不可用时：broadband 回到宽带；block 禁止上网
 	option dns '1.1.1.1'            # 指定设备的 DNS 改发到这里，经手机出去
+	option dns6 '2606:4700:4700::1111'  # 同上，IPv6 的 DNS 请求
 
 config device
 	option name 'MacBook'
@@ -135,7 +137,7 @@ fw4 重载时会自动带上这个文件；卸载软件包时删除它，再 `fw
 
 ### 5. DNS
 
-被指定设备发出的 DNS（UDP 和 TCP 53，目标是路由器自己或任意地址）在 `dstnat` 里改写为 `option dns` 指定的地址（默认 1.1.1.1）。改写后，这些包按上面的策略路由经手机出去。
+被指定设备发出的 DNS（UDP 和 TCP 53，目标是路由器自己或任意地址）在 `dstnat` 里改写为 `option dns` 指定的地址（默认 1.1.1.1；IPv6 的请求改写为 `option dns6`）。改写后，这些包按上面的策略路由经手机出去。
 
 这样做之后：
 - DNS 和出口来自同一个网络，CDN 分配的节点和出口地区一致；
