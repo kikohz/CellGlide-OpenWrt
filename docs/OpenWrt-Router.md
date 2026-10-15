@@ -101,12 +101,12 @@ uci commit cellglide
 
 | 选项 | 默认值 | 说明 |
 | --- | --- | --- |
-| `enabled` | | 是否启用 |
+| `enabled` | `1` | 设为 `0` 时服务什么都不做 |
 | `socks_port` | `9876` | 手机上 CellGlide 的 SOCKS5 端口 |
 | `local_port` | `19876` | 转发到路由器本机的端口 |
 | `fallback` | `broadband` | 手机不可用时的行为：`broadband` 回到宽带，`block` 断网 |
-| `dns` | `1.1.1.1` | 选中设备使用的 IPv4 DNS |
-| `dns6` | `2606:4700:4700::1111` | 选中设备使用的 IPv6 DNS |
+| `dns` | `1.1.1.1` | 手机在用时,选中设备的 IPv4 DNS 请求会被转到这个地址 |
+| `dns6` | `2606:4700:4700::1111` | 手机在用时,选中设备的 IPv6 DNS 请求会被转到这个地址 |
 
 每台选中的设备是一个 `device` 段，有 `mac` 和 `name` 两项，一般用 `cellglide add` 来加，不用手改。
 
