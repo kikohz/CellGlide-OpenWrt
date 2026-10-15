@@ -1,0 +1,125 @@
+#!/bin/sh
+# cellglide: choose which LAN devices go out through the iPhone, and check on it.
+
+. /usr/lib/cellglide/common.sh
+
+STATUS=/var/run/cellglide/status
+UCI="uci${CELLGLIDE_UCI_DIR:+ -c $CELLGLIDE_UCI_DIR}"
+
+usage() {
+	cat <<'EOF'
+Usage: cellglide <command>
+  pair               Pair the iPhone plugged into this router (tap Trust on the phone)
+  add MAC [NAME]     Send this device's traffic through the iPhone
+  remove MAC         Send this device back to the broadband line
+  list               Show devices on the LAN; chosen ones are marked
+  status             Show whether the iPhone is in use
+EOF
+	exit 1
+}
+
+# Prints the chosen MACs, one per line.
+chosen() {
+	local i=0 mac
+	while mac=$($UCI -q get "cellglide.@device[$i].mac"); do
+		cg_normalize_mac "$mac"
+		i=$((i + 1))
+	done
+}
+
+# Prints the index of the device section holding this MAC.
+index_of() {
+	local i=0 mac
+	while mac=$($UCI -q get "cellglide.@device[$i].mac"); do
+		if [ "$(cg_normalize_mac "$mac")" = "$1" ]; then
+			echo "$i"
+			return 0
+		fi
+		i=$((i + 1))
+	done
+	return 1
+}
+
+apply() {
+	$UCI commit cellglide
+	[ -n "$CELLGLIDE_UCI_DIR" ] || /etc/init.d/cellglide reload
+}
+
+mac_argument() {
+	cg_normalize_mac "$1" || {
+		echo "Not a MAC address: $1 (example: aa:bb:cc:dd:ee:ff)" >&2
+		exit 1
+	}
+}
+
+show_status() {
+	local state since device udp error mac name i=0
+	if [ ! -f "$STATUS" ]; then
+		echo "cellglide is not running. Start it with: /etc/init.d/cellglide start"
+		exit 1
+	fi
+	. "$STATUS"
+	if [ -z "$device" ]; then
+		echo "iPhone:  not connected"
+	else
+		echo "iPhone:  $device"
+	fi
+	if [ "$state" = up ]; then
+		echo "State:   in use since $(date -d "@$since" '+%Y-%m-%d %H:%M:%S')"
+	else
+		echo "State:   not in use ($error)"
+	fi
+	case "$udp" in
+	yes) echo "UDP:     works" ;;
+	no) echo "UDP:     needs CellGlide 2.3 or later on the iPhone (TCP works)" ;;
+	esac
+	if [ "$state" = up ] && command -v curl >/dev/null; then
+		echo "Exit IP: $(curl -s -m 5 --interface "$CG_TUN" https://speed.cloudflare.com/cdn-cgi/trace | sed -n 's/^ip=//p')"
+	fi
+	echo "Devices:"
+	while mac=$($UCI -q get "cellglide.@device[$i].mac"); do
+		name=$($UCI -q get "cellglide.@device[$i].name")
+		echo "  $mac${name:+  $name}"
+		i=$((i + 1))
+	done
+	[ "$i" = 0 ] && echo "  none yet. Add one with: cellglide add MAC [NAME]"
+	return 0
+}
+
+case "$1" in
+pair)
+	exec idevicepair pair
+	;;
+add)
+	mac=$(mac_argument "$2") || exit 1
+	if index_of "$mac" >/dev/null; then
+		echo "$mac already uses the iPhone"
+		exit 0
+	fi
+	section=$($UCI add cellglide device)
+	$UCI set "cellglide.$section.mac=$mac"
+	[ -n "$3" ] && $UCI set "cellglide.$section.name=$3"
+	apply
+	echo "$mac now uses the iPhone"
+	;;
+remove)
+	mac=$(mac_argument "$2") || exit 1
+	i=$(index_of "$mac") || {
+		echo "$mac is not in the list"
+		exit 1
+	}
+	$UCI delete "cellglide.@device[$i]"
+	apply
+	echo "$mac is back on the broadband line"
+	;;
+list)
+	# shellcheck disable=SC2046 # one argument per MAC
+	cg_leases $(chosen) </tmp/dhcp.leases
+	;;
+status)
+	show_status
+	;;
+*)
+	usage
+	;;
+esac
