@@ -46,6 +46,13 @@ test_failures_surface() {
 	assert_eq "$?" 1 "tunnel up reports a failed ip"
 	cg_quiet ip x
 	assert_eq "$?" 0 "quiet ignores a failed ip"
+	# IPv6 may be disabled: only the IPv4 route is required.
+	ip() { [ "$1" != -6 ]; }
+	cg_tunnel_up
+	assert_eq "$?" 0 "tunnel up ignores a failed IPv6 route"
+	ip() { [ "$1" != -4 ]; }
+	cg_tunnel_up
+	assert_eq "$?" 1 "tunnel up needs the IPv4 route"
 	unset -f ip
 }
 

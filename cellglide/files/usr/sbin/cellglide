@@ -73,7 +73,7 @@ show_status() {
 	fi
 	case "$udp" in
 	yes) echo "UDP:     works" ;;
-	no) echo "UDP:     not available; UDP and DNS stay on the broadband line until CellGlide 2.3 or later (TCP works)" ;;
+	no) echo "UDP:     needs CellGlide 2.3 or later on the iPhone; DNS uses the router meanwhile (TCP works)" ;;
 	esac
 	if [ "$state" = up ] && command -v curl >/dev/null; then
 		echo "Exit IP: $(curl -s -m 5 --interface "$CG_TUN" https://speed.cloudflare.com/cdn-cgi/trace | sed -n 's/^ip=//p')"

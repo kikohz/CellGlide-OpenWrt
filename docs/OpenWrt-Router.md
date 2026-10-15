@@ -9,7 +9,7 @@
 ## 需要什么
 
 - OpenWrt 24.10 或 25.12。23.05 的软件源里没有 `hev-socks5-tunnel`，不支持。
-- iOS 版 CellGlide 2.3 或更新版本。旧版 App 上 TCP 能用，UDP 不通，这时 UDP 和 DNS 仍走宽带（DNS 由路由器自己解析），`cellglide status` 会提示。
+- iOS 版 CellGlide 2.3 或更新版本。旧版 App 上 TCP 能用，UDP 不通；DNS 改由路由器自己解析（走宽带），`cellglide status` 会提示。
 - 一根 USB 线，把 iPhone 接到路由器的 USB 口。
 - 使用时 App 要在前台，并且已经开始共享。
 
@@ -31,7 +31,7 @@ opkg update
 opkg install ./cellglide_0.1.0-r1_all.ipk
 ```
 
-安装时会顺带从官方源装好依赖：`usbmuxd`、`libusbmuxd-utils`、`libimobiledevice-utils`、`hev-socks5-tunnel`、`ucode`、`ucode-mod-socket`。所以安装前要先 `update`，路由器也要能上网。
+安装时会顺带从官方源装好依赖：`usbmuxd`、`libusbmuxd-utils`、`libimobiledevice-utils`、`hev-socks5-tunnel`、`kmod-tun`、`ucode`、`ucode-mod-socket`。所以安装前要先 `update`，路由器也要能上网。
 
 安装包没有签名，所以 `apk` 要加 `--allow-untrusted`。
 
@@ -102,7 +102,7 @@ uci commit cellglide
 | `local_port` | `19876` | 转发到路由器本机的端口 |
 | `fallback` | `broadband` | 手机不可用时的行为：`broadband` 回到宽带，`block` 断网 |
 | `dns` | `1.1.1.1` | 手机在用时，选中设备的 IPv4 DNS 请求会被转到这个地址（仅当 UDP 可用时；否则 DNS 留在路由器） |
-| `dns6` | `2606:4700:4700::1111` | 手机在用时，选中设备的 IPv6 DNS 请求会被转到这个地址 |
+| `dns6` | `2606:4700:4700::1111` | 手机在用时，选中设备的 IPv6 DNS 请求会被转到这个地址（仅当 UDP 可用时） |
 
 每台选中的设备是一个 `device` 段，有 `mac` 和 `name` 两项，一般用 `cellglide add` 来加，不用手改。
 

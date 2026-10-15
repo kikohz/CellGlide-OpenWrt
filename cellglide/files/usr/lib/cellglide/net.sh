@@ -43,13 +43,11 @@ cg_setup() {
 	return $rc
 }
 
-# Returns 1 if either route replace failed.
+# Only the IPv4 default route is required; an IPv6 failure is ignored.
 cg_tunnel_up() {
-	local family rc=0
-	for family in 4 6; do
-		cg_run ip -"$family" route replace default dev "$CG_TUN" table "$CG_TABLE" || rc=1
-	done
-	return $rc
+	cg_run ip -4 route replace default dev "$CG_TUN" table "$CG_TABLE" || return 1
+	# IPv6 may be disabled on the router; that must not stop the feature.
+	cg_quiet ip -6 route replace default dev "$CG_TUN" table "$CG_TABLE"
 }
 
 cg_tunnel_down() {
