@@ -11,27 +11,40 @@ recorded() {
 
 test_setup_broadband() {
 	assert_eq "$(recorded cg_setup broadband '10.10.10.0/24' 'fd1e::/64
-fe80::/64')" "ip -4 rule del priority 1986
+fe80::/64')" "ip -4 route flush table 1986
+ip -4 rule del priority 1986
 ip -4 rule add fwmark 0x10000/0x10000 lookup 1986 priority 1986
-ip -4 route flush table 1986
+ip -6 route flush table 1986
 ip -6 rule del priority 1986
 ip -6 rule add fwmark 0x10000/0x10000 lookup 1986 priority 1986
-ip -6 route flush table 1986
 ip -4 route add 10.10.10.0/24 dev br-lan table 1986
 ip -6 route add fd1e::/64 dev br-lan table 1986
 ip -6 route add fe80::/64 dev br-lan table 1986" "setup, back to broadband"
 }
 
 test_setup_block() {
-	assert_eq "$(recorded cg_setup block '10.10.10.0/24' '')" "ip -4 rule del priority 1986
-ip -4 rule add fwmark 0x10000/0x10000 lookup 1986 priority 1986
-ip -4 route flush table 1986
+	assert_eq "$(recorded cg_setup block '10.10.10.0/24' '')" "ip -4 route flush table 1986
 ip -4 route add unreachable default metric 4000000000 table 1986
-ip -6 rule del priority 1986
-ip -6 rule add fwmark 0x10000/0x10000 lookup 1986 priority 1986
+ip -4 rule del priority 1986
+ip -4 rule add fwmark 0x10000/0x10000 lookup 1986 priority 1986
 ip -6 route flush table 1986
 ip -6 route add unreachable default metric 4000000000 table 1986
+ip -6 rule del priority 1986
+ip -6 rule add fwmark 0x10000/0x10000 lookup 1986 priority 1986
 ip -4 route add 10.10.10.0/24 dev br-lan table 1986" "setup, blocked without the iPhone"
+}
+
+# A failing ip must surface as a non-zero status, while cg_quiet hides the failure.
+test_failures_surface() {
+	CG_DRYRUN=""
+	ip() { return 1; }
+	cg_setup broadband '' ''
+	assert_eq "$?" 1 "setup reports a failed ip"
+	cg_tunnel_up
+	assert_eq "$?" 1 "tunnel up reports a failed ip"
+	cg_quiet ip x
+	assert_eq "$?" 0 "quiet ignores a failed ip"
+	unset -f ip
 }
 
 test_tunnel_routes() {
@@ -63,3 +76,4 @@ test_setup_block
 test_tunnel_routes
 test_teardown
 test_nft_apply
+test_failures_surface
