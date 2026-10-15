@@ -5,6 +5,7 @@ name: OpenWrt package
 
 on:
   push:
+    branches: ['**']
     paths: ['Router/OpenWrt/**', '.github/workflows/openwrt.yml']
     tags: ['openwrt-*']
   workflow_dispatch:
@@ -28,6 +29,8 @@ jobs:
   build:
     needs: check
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     strategy:
       matrix:
         include:
