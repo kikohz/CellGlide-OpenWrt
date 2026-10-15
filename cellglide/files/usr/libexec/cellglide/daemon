@@ -1,0 +1,154 @@
+#!/bin/sh
+# Watches the iPhone and moves the chosen devices between it and the broadband line.
+# Run by procd (/etc/init.d/cellglide); SIGTERM undoes every change it made.
+
+. /lib/functions.sh
+. /usr/lib/cellglide/common.sh
+. /usr/lib/cellglide/net.sh
+
+RUN=/var/run/cellglide
+PROBE=/usr/libexec/cellglide/probe
+HEV_PID=""
+STATE=down
+FAILS=0
+UDP=unknown
+DEVICE=""
+ERROR=""
+MACS=""
+
+add_device() {
+	local mac
+	config_get mac "$1" mac
+	mac=$(cg_normalize_mac "$mac") && MACS="$MACS $mac"
+}
+
+config_load cellglide
+config_get LOCAL_PORT main local_port 19876
+config_get FALLBACK main fallback broadband
+config_get DNS4 main dns 1.1.1.1
+config_get DNS6 main dns6 2606:4700:4700::1111
+config_foreach add_device device
+
+log() {
+	logger -t cellglide "$*"
+}
+
+write_status() {
+	printf "state='%s'\nsince='%s'\ndevice='%s'\nudp='%s'\nerror='%s'\n" \
+		"$STATE" "$SINCE" "$DEVICE" "$UDP" "$ERROR" >"$RUN/status.tmp" &&
+		mv "$RUN/status.tmp" "$RUN/status"
+}
+
+lan_routes() {
+	ip -"$1" route show table main dev "$CG_LAN" | cg_lan_routes
+}
+
+load_nft() {
+	# shellcheck disable=SC2086 # one argument per MAC
+	cg_nft_ruleset "$DNS4" "$DNS6" "$1" $MACS | cg_nft_apply
+}
+
+hev_stop() {
+	if [ -n "$HEV_PID" ]; then
+		kill "$HEV_PID" 2>/dev/null
+		wait "$HEV_PID" 2>/dev/null
+		HEV_PID=""
+	fi
+}
+
+hev_alive() {
+	[ -n "$HEV_PID" ] && kill -0 "$HEV_PID" 2>/dev/null
+}
+
+# A previous instance killed with SIGKILL leaves its hev (and cgtun) behind.
+kill_stale_hev() {
+	local pid
+	for pid in $(pgrep -f "hev-socks5-tunnel $RUN/hev.yml"); do
+		kill "$pid" 2>/dev/null
+	done
+}
+
+go_up() {
+	local tries=0
+	hev_stop
+	kill_stale_hev
+	cg_hev_config "$LOCAL_PORT" >"$RUN/hev.yml"
+	hev-socks5-tunnel "$RUN/hev.yml" &
+	HEV_PID=$!
+	while [ ! -d "/sys/class/net/$CG_TUN" ] && [ "$tries" -lt 10 ]; do
+		sleep 1
+		tries=$((tries + 1))
+	done
+	if [ ! -d "/sys/class/net/$CG_TUN" ]; then
+		ERROR="the tunnel did not start"
+		hev_stop
+		return 1
+	fi
+	cg_setup "$FALLBACK" "$(lan_routes 4)" "$(lan_routes 6)" || log "cg_setup reported failures"
+	cg_tunnel_up || log "cg_tunnel_up reported failures"
+	load_nft 1
+	"$PROBE" udp "$LOCAL_PORT"
+	case $? in
+	0) UDP=yes ;;
+	3) UDP=no ;;
+	*) UDP=unknown ;;
+	esac
+	log "using the iPhone for:${MACS:- no devices yet}"
+}
+
+go_down() {
+	load_nft 0
+	cg_tunnel_down
+	hev_stop
+	log "iPhone unavailable ($ERROR), devices use: $FALLBACK"
+}
+
+cleanup() {
+	hev_stop
+	cg_teardown
+	rm -f "$RUN/status" "$RUN/status.tmp" "$RUN/hev.yml"
+	exit 0
+}
+
+trap cleanup INT TERM
+
+mkdir -p "$RUN"
+kill_stale_hev
+cg_setup "$FALLBACK" "$(lan_routes 4)" "$(lan_routes 6)"
+load_nft 0
+SINCE=$(date +%s)
+write_status
+
+while :; do
+	DEVICE=$(idevice_id -l 2>/dev/null | head -n 1)
+	if [ -z "$DEVICE" ]; then
+		probe=1
+		ERROR="no iPhone connected"
+	elif "$PROBE" greet "$LOCAL_PORT"; then
+		probe=0
+		ERROR=""
+	else
+		probe=1
+		ERROR="CellGlide is not sharing"
+	fi
+	next=$(cg_next_state "$STATE" "$FAILS" "$probe")
+	FAILS=${next#* }
+	next=${next% *}
+	if [ "$next" = up ] && { [ "$STATE" = down ] || ! hev_alive; }; then
+		# Also restarts hev if it exited while the iPhone was in use.
+		if go_up; then
+			[ "$STATE" = down ] && SINCE=$(date +%s)
+			STATE=up
+		else
+			STATE=down
+		fi
+	elif [ "$next" = down ] && [ "$STATE" = up ]; then
+		go_down
+		STATE=down
+		SINCE=$(date +%s)
+	fi
+	write_status
+	# Sleep in the background so SIGTERM is handled right away.
+	sleep 5 &
+	wait $!
+done

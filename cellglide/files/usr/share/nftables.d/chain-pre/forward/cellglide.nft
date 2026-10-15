@@ -1,0 +1,2 @@
+# cellglide: let chosen LAN devices out through the iPhone tunnel.
+iifname "br-lan" oifname "cgtun" accept comment "cellglide"
