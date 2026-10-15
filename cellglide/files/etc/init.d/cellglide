@@ -17,11 +17,13 @@ start_service() {
 	procd_open_instance iproxy
 	procd_set_param command /usr/bin/iproxy -l "$local_port:$socks_port"
 	procd_set_param respawn
+	procd_set_param file /etc/config/cellglide
 	procd_close_instance
 
 	procd_open_instance daemon
 	procd_set_param command /usr/libexec/cellglide/daemon
 	procd_set_param respawn
+	procd_set_param file /etc/config/cellglide
 	procd_set_param term_timeout 10
 	procd_set_param stdout 1
 	procd_set_param stderr 1

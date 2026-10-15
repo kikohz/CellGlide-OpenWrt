@@ -13,7 +13,7 @@ function read_exact(conn, count) {
 	let data = '';
 	while (length(data) < count) {
 		const ready = socket.poll(2000, conn);
-		if (!ready || !ready[0][1])
+		if (!ready?.[0]?.[1])
 			return null;
 		const chunk = conn.recv(count - length(data));
 		if (!length(chunk))

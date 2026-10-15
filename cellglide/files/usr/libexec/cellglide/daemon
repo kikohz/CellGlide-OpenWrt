@@ -100,6 +100,7 @@ go_down() {
 	load_nft 0
 	cg_tunnel_down
 	hev_stop
+	UDP=unknown
 	log "iPhone unavailable ($ERROR), devices use: $FALLBACK"
 }
 
@@ -140,6 +141,10 @@ while :; do
 			[ "$STATE" = down ] && SINCE=$(date +%s)
 			STATE=up
 		else
+			if [ "$STATE" = up ]; then
+				go_down
+				SINCE=$(date +%s)
+			fi
 			STATE=down
 		fi
 	elif [ "$next" = down ] && [ "$STATE" = up ]; then
