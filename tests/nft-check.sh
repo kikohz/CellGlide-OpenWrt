@@ -1,7 +1,7 @@
 #!/bin/sh
 # Checks that the generated nft rulesets parse, which the string tests in run.sh can't.
 # Needs nft and root (nft -c talks to the kernel but changes nothing):
-#   sudo sh Router/OpenWrt/tests/nft-check.sh
+#   sudo sh tests/nft-check.sh
 cd "$(dirname "$0")" || exit 1
 # shellcheck source=/dev/null
 . ../cellglide/files/usr/lib/cellglide/common.sh

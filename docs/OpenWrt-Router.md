@@ -15,7 +15,7 @@
 
 ## 安装
 
-先到 GitHub Releases 页面（`openwrt-0.2.0`）下载安装包：`cellglide` 是后台服务，`luci-app-cellglide` 是路由器后台里的网页界面（不需要网页界面的话可以只装第一个）。传到路由器的 `/tmp`，再安装。
+先到 [GitHub Releases](https://github.com/kikohz/CellGlide-OpenWrt/releases) 页面（`v0.2.0`）下载安装包：`cellglide` 是后台服务，`luci-app-cellglide` 是路由器后台里的网页界面（不需要网页界面的话可以只装第一个）。传到路由器的 `/tmp`，再安装。
 
 OpenWrt 25.12（`apk`）：
 

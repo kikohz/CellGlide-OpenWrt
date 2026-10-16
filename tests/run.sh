@@ -1,6 +1,6 @@
 #!/bin/sh
 # Runs the package's shell tests. Use busybox sh where available: it is the router's shell.
-#   busybox sh Router/OpenWrt/tests/run.sh
+#   busybox sh tests/run.sh
 cd "$(dirname "$0")" || exit 1
 FILES=../cellglide/files
 FAILED=0
