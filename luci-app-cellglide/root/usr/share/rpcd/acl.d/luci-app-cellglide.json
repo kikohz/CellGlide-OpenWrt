@@ -1,0 +1,18 @@
+{
+	"luci-app-cellglide": {
+		"description": "Grant access to CellGlide",
+		"read": {
+			"ubus": {
+				"luci.cellglide": [ "status", "paired" ],
+				"luci-rpc": [ "getDHCPLeases" ]
+			},
+			"uci": [ "cellglide" ]
+		},
+		"write": {
+			"ubus": {
+				"luci.cellglide": [ "pair", "start" ]
+			},
+			"uci": [ "cellglide" ]
+		}
+	}
+}

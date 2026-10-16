@@ -15,20 +15,20 @@
 
 ## 安装
 
-先到 GitHub Releases 页面（`openwrt-0.1.0`）下载安装包，传到路由器的 `/tmp`，再安装。
+先到 GitHub Releases 页面（`openwrt-0.2.0`）下载两个安装包：`cellglide` 是后台服务，`luci-app-cellglide` 是路由器后台里的网页界面（不需要网页界面的话可以只装第一个）。传到路由器的 `/tmp`，再安装。
 
 OpenWrt 25.12（`apk`）：
 
 ```sh
 apk update
-apk add --allow-untrusted ./cellglide-0.1.0-r1.apk
+apk add --allow-untrusted ./cellglide-0.2.0-r1.apk ./luci-app-cellglide-0.2.0-r1.apk
 ```
 
 OpenWrt 24.10（`opkg`）：
 
 ```sh
 opkg update
-opkg install ./cellglide_0.1.0-r1_all.ipk
+opkg install ./cellglide_0.2.0-r1_all.ipk ./luci-app-cellglide_0.2.0-r1_all.ipk
 ```
 
 安装时会顺带从官方源装好依赖：`usbmuxd`、`libusbmuxd-utils`、`libimobiledevice-utils`、`hev-socks5-tunnel`、`kmod-tun`、`ucode`、`ucode-mod-socket`。所以安装前要先 `update`，路由器也要能上网。
@@ -36,6 +36,18 @@ opkg install ./cellglide_0.1.0-r1_all.ipk
 安装包没有签名，所以 `apk` 要加 `--allow-untrusted`。
 
 装完后服务会自动启用并启动，可以用 `cellglide status` 看一下运行状态。
+
+## 网页界面
+
+装了 `luci-app-cellglide` 的话，打开路由器后台，在“服务 › CellGlide”里有三个页面：
+
+- **状态**：手机是否连上、是否在用、UDP 是否正常、出口 IP；不可用时写明原因和该怎么做（没插手机、没配对、没在共享）。
+- **设备**：路由器上的设备列表（来自 DHCP 租约），每台一个“走手机”开关，可以写备注；也可以一键让所有设备走手机，或者手动添加不在列表里的设备。改完点“保存并应用”。
+- **设置**：启用开关、手机不可用时回到宽带还是断网、DNS、配对按钮，以及高级里的端口和“在 iPhone 上显示的名字”。
+
+后面讲的命令行操作，在网页里都能做。
+
+路由器会像 Mac 一样把自己的名字报给手机，iPhone 首页“已连接的设备”里会显示它（默认是路由器的主机名）。
 
 ## 配对
 
@@ -133,13 +145,13 @@ uci commit cellglide
 ## 卸载
 
 ```sh
-apk del cellglide
+apk del luci-app-cellglide cellglide
 ```
 
 24.10 用：
 
 ```sh
-opkg remove cellglide
+opkg remove luci-app-cellglide cellglide
 ```
 
 卸载后所有规则都会撤掉。`/etc/config/cellglide` 是配置文件，可能会保留，这是正常的。依赖包也不会被删。

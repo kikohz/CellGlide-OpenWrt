@@ -56,17 +56,20 @@ mac_argument() {
 }
 
 show_status() {
-	local state since device udp error mac name i=0
+	# Declared local so sourcing the status file sets nothing outside this function.
+	# shellcheck disable=SC2034
+	local state since device udp error mac name exit reason i=0 phone
 	if [ ! -f "$STATUS" ]; then
 		echo "cellglide is not running. Start it with: /etc/init.d/cellglide start"
 		exit 1
 	fi
 	# shellcheck source=/dev/null
 	. "$STATUS"
+	phone=$name
 	if [ -z "$device" ]; then
 		echo "iPhone:  not connected"
 	else
-		echo "iPhone:  $device"
+		echo "iPhone:  ${phone:+$phone, }$device"
 	fi
 	if [ "$state" = up ]; then
 		echo "State:   in use since $(date -d "@$since" '+%Y-%m-%d %H:%M:%S')"
@@ -77,9 +80,7 @@ show_status() {
 	yes) echo "UDP:     works" ;;
 	no) echo "UDP:     needs CellGlide 2.3 or later on the iPhone; DNS uses the router meanwhile (TCP works)" ;;
 	esac
-	if [ "$state" = up ] && command -v curl >/dev/null; then
-		echo "Exit IP: $(curl -s -m 5 --interface "$CG_TUN" https://speed.cloudflare.com/cdn-cgi/trace | sed -n 's/^ip=//p')"
-	fi
+	[ "$state" = up ] && [ -n "$exit" ] && echo "Exit IP: $exit"
 	echo "Devices:"
 	if [ "$($UCI -q get cellglide.main.all)" = 1 ]; then
 		echo "  all devices on the LAN"

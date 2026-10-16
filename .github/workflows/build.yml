@@ -25,6 +25,8 @@ jobs:
           shellcheck -s sh -e SC3043,SC2034,SC2154 cellglide/files/etc/init.d/cellglide
       - name: Tests (busybox ash)
         run: busybox sh Router/OpenWrt/tests/run.sh
+      - name: LuCI pages parse
+        run: for f in Router/OpenWrt/luci-app-cellglide/htdocs/luci-static/resources/view/cellglide/*.js; do node --check "$f"; done
       - name: nft rulesets parse
         run: sudo apt-get install -y nftables && sudo sh Router/OpenWrt/tests/nft-check.sh
 
@@ -50,11 +52,11 @@ jobs:
           ARCH: ${{ matrix.arch }}
           FEED_DIR: ${{ github.workspace }}/Router/OpenWrt
           FEEDNAME: cellglide
-          PACKAGES: cellglide
+          PACKAGES: cellglide luci-app-cellglide
       - name: Collect the package
         run: |
           mkdir -p out
-          find bin/packages -name "cellglide*.${{ matrix.ext }}" -exec cp {} out/ \;
+          find bin/packages \( -name "cellglide*.${{ matrix.ext }}" -o -name "luci-app-cellglide*.${{ matrix.ext }}" \) -exec cp {} out/ \;
           ls -l out
           test -n "$(ls out)"
       - uses: actions/upload-artifact@v4

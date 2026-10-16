@@ -1,0 +1,120 @@
+#!/usr/bin/ucode
+// Tells the iPhone which computer is using it, the way the Mac does, so the phone's
+// "connected" row shows this router's name and USB speed.
+//   report PORT   PORT is the router end of iproxy's forward to the phone's port 8088
+// It asks GET /cellproxy/hello for the sharing session, then holds GET /cellproxy/watch open
+// with X-CellGlide-Mac (the name) and X-CellGlide-Link (USB speed). When the phone stops
+// or restarts sharing the connection closes, and this starts over.
+'use strict';
+
+import * as socket from 'socket';
+import { readfile, glob } from 'fs';
+import { cursor } from 'uci';
+
+const port = +ARGV[0];
+
+// The name the phone shows: cellglide.main.name, else the router's hostname, else OpenWrt.
+function router_name() {
+	const uci = cursor();
+	let name = uci.get('cellglide', 'main', 'name');
+	if (!length(name))
+		name = uci.get_first('system', 'system', 'hostname');
+	return length(name) ? substr(name, 0, 64) : 'OpenWrt';
+}
+
+// Percent-encodes every byte that isn't a letter or digit, as the Mac does.
+function encode(text) {
+	let out = '';
+	for (let i = 0; i < length(text); i++) {
+		const c = ord(text, i);
+		if ((c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122))
+			out += chr(c);
+		else
+			out += sprintf('%%%02X', c);
+	}
+	return out;
+}
+
+// The negotiated speed of the attached iPhone in bits per second (sysfs reports Mbit/s).
+function link_speed() {
+	for (let dir in glob('/sys/bus/usb/devices/*')) {
+		if (trim(readfile(dir + '/idVendor') ?? '') != '05ac')
+			continue;
+		const mbps = +trim(readfile(dir + '/speed') ?? '');
+		if (mbps > 0)
+			return mbps * 1000000;
+	}
+	return null;
+}
+
+// Reads until the phone closes the connection or `until` appears; null on timeout.
+function read_until(conn, until, timeout) {
+	let data = '';
+	while (until == null || index(data, until) < 0) {
+		const ready = socket.poll(timeout, conn);
+		if (!ready?.[0]?.[1])
+			return null;
+		const chunk = conn.recv(4096);
+		if (!length(chunk))
+			break;
+		data += chunk;
+		if (length(data) > 16384)
+			break;
+	}
+	return data;
+}
+
+function session_id() {
+	const conn = socket.connect('127.0.0.1', port, null, 2000);
+	if (!conn)
+		return null;
+	conn.send('GET /cellproxy/hello HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n');
+	const reply = read_until(conn, null, 3000);
+	conn.close();
+	const body = reply ? split(reply, '\r\n\r\n', 2)[1] : null;
+	let hello = null;
+	try { hello = json(body ?? ''); } catch (e) { return null; }
+	const id = hello?.sessionID;
+	return match(id ?? '', /^[0-9A-Fa-f-]{36}$/) ? id : null;
+}
+
+// Holds the watch until the phone ends it. Returns true when the phone accepted it.
+function watch(id) {
+	const conn = socket.connect('127.0.0.1', port, null, 2000);
+	if (!conn)
+		return false;
+	let headers = 'X-CellGlide-Mac: ' + encode(router_name()) + '\r\n';
+	const speed = link_speed();
+	if (speed)
+		headers += sprintf('X-CellGlide-Link: usb; speed=%d\r\n', speed);
+	conn.send(sprintf('GET /cellproxy/watch?session=%s HTTP/1.1\r\nHost: localhost\r\n%s\r\n', id, headers));
+	const head = read_until(conn, '\r\n\r\n', 3000);
+	if (!head || index(head, ' 200 ') < 0) {
+		conn.close();
+		return false;
+	}
+	// Idle until the phone closes the session; wake every minute to notice a dead socket.
+	while (true) {
+		const ready = socket.poll(60000, conn);
+		if (ready == null)
+			break;
+		if (ready[0][1] && !length(conn.recv(4096)))
+			break;
+	}
+	conn.close();
+	return true;
+}
+
+if (!port) {
+	warn('usage: report PORT\n');
+	exit(2);
+}
+
+while (true) {
+	const id = session_id();
+	// No phone, or CellGlide isn't sharing: look again in a few seconds.
+	if (!id || !watch(id))
+		sleep(5000);
+	else
+		sleep(1000);
+}

@@ -1,0 +1,87 @@
+// rpcd plugin behind the CellGlide pages: status for the overview, pairing and starting
+// the service. Everything else (devices, settings) goes through LuCI's own UCI calls.
+'use strict';
+
+import { readfile, popen } from 'fs';
+import { cursor } from 'uci';
+
+const ubus = require('ubus').connect();
+
+// The daemon's status file: key='value' lines with quotes and line breaks already removed.
+function read_status() {
+	const status = {};
+	for (let line in split(readfile('/var/run/cellglide/status') ?? '', '\n')) {
+		const m = match(line, /^([a-z]+)='(.*)'$/);
+		if (m)
+			status[m[1]] = m[2];
+	}
+	return status;
+}
+
+function service_running() {
+	const list = ubus.call('service', 'list', { name: 'cellglide' });
+	return !!list?.cellglide?.instances?.daemon?.running;
+}
+
+function run(command) {
+	const fd = popen(command + ' 2>&1');
+	if (!fd)
+		return { code: -1, output: '' };
+	const output = fd.read('all');
+	return { code: fd.close(), output: trim(output ?? '') };
+}
+
+const methods = {
+	status: {
+		call: function() {
+			const uci = cursor();
+			const status = read_status();
+			let devices = 0;
+			uci.foreach('cellglide', 'device', () => { devices++; });
+			return {
+				running: service_running(),
+				enabled: uci.get('cellglide', 'main', 'enabled') != '0',
+				all: uci.get('cellglide', 'main', 'all') == '1',
+				devices: devices,
+				fallback: uci.get('cellglide', 'main', 'fallback') ?? 'broadband',
+				version: trim(readfile('/usr/lib/cellglide/version') ?? ''),
+				state: status.state ?? 'down',
+				since: +(status.since ?? 0),
+				device: status.device ?? '',
+				name: status.name ?? '',
+				udp: status.udp ?? 'unknown',
+				exit: status.exit ?? '',
+				reason: status.reason ?? 'none',
+				now: time()
+			};
+		}
+	},
+
+	// Whether this router is trusted by the attached iPhone; slow-ish, so only on request.
+	paired: {
+		call: function() {
+			const device = read_status().device;
+			// A UDID is hex digits and hyphens; anything else never reaches the shell.
+			if (!match(device ?? '', /^[0-9A-Fa-f-]{20,48}$/))
+				return { device: false, paired: false };
+			return { device: true, paired: run('idevicepair -u ' + device + ' validate').code == 0 };
+		}
+	},
+
+	// Shows "Trust this computer?" on the iPhone; the user taps Trust there.
+	pair: {
+		call: function() {
+			const result = run('idevicepair pair');
+			return { ok: result.code == 0, output: result.output };
+		}
+	},
+
+	start: {
+		call: function() {
+			run('/etc/init.d/cellglide enable');
+			return { ok: run('/etc/init.d/cellglide start').code == 0 };
+		}
+	}
+};
+
+return { 'luci.cellglide': methods };

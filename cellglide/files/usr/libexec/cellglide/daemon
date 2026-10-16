@@ -16,7 +16,12 @@ STATE=down
 FAILS=0
 UDP=unknown
 DEVICE=""
+NAME=""
+NAMED=""
+EXIT=""
 ERROR=""
+# What the web interface translates: none, no-iphone, not-paired, not-sharing or tunnel.
+REASON=none
 MACS=""
 
 add_device() {
@@ -40,9 +45,24 @@ log() {
 }
 
 write_status() {
-	printf "state='%s'\nsince='%s'\ndevice='%s'\nudp='%s'\nerror='%s'\n" \
-		"$STATE" "$SINCE" "$DEVICE" "$UDP" "$ERROR" >"$RUN/status.tmp" &&
+	printf "state='%s'\nsince='%s'\ndevice='%s'\nname='%s'\nudp='%s'\nexit='%s'\nreason='%s'\nerror='%s'\n" \
+		"$STATE" "$SINCE" "$DEVICE" "$NAME" "$UDP" "$EXIT" "$REASON" "$ERROR" >"$RUN/status.tmp" &&
 		mv "$RUN/status.tmp" "$RUN/status"
+}
+
+# The iPhone's own name (Settings › General › About), looked up once per phone.
+phone_name() {
+	[ "$DEVICE" = "$NAMED" ] && return
+	NAMED=$DEVICE
+	NAME=""
+	[ -n "$DEVICE" ] && NAME=$(cg_status_value "$(ideviceinfo -u "$DEVICE" -k DeviceName 2>/dev/null | head -n 1)")
+}
+
+# The exit address the chosen devices get, when curl is installed (it is optional).
+exit_address() {
+	EXIT=""
+	command -v curl >/dev/null || return
+	EXIT=$(cg_status_value "$(curl -s -m 5 --interface "$CG_TUN" https://speed.cloudflare.com/cdn-cgi/trace | sed -n 's/^ip=//p')")
 }
 
 lan_routes() {
@@ -95,12 +115,14 @@ go_up() {
 	done
 	if [ ! -d "/sys/class/net/$CG_TUN" ]; then
 		ERROR="the tunnel did not start"
+		REASON=tunnel
 		hev_stop
 		return 1
 	fi
 	cg_setup "$FALLBACK" "$(lan_routes 4)" "$(lan_routes 6)" || log "cg_setup reported failures"
 	if ! cg_tunnel_up; then
 		ERROR="could not route through the tunnel"
+		REASON=tunnel
 		log "cg_tunnel_up failed"
 		hev_stop
 		return 1
@@ -118,6 +140,7 @@ go_up() {
 	else
 		load_nft 0
 	fi
+	exit_address
 	log "using the iPhone for:${MACS:- no devices yet}"
 }
 
@@ -126,6 +149,7 @@ go_down() {
 	cg_tunnel_down
 	hev_stop
 	UDP=unknown
+	EXIT=""
 	log "iPhone unavailable ($ERROR), devices use: $FALLBACK"
 }
 
@@ -147,15 +171,23 @@ write_status
 
 while :; do
 	DEVICE=$(idevice_id -l 2>/dev/null | head -n 1)
+	phone_name
 	if [ -z "$DEVICE" ]; then
 		probe=1
 		ERROR="no iPhone connected"
+		REASON=no-iphone
 	elif "$PROBE" greet "$LOCAL_PORT"; then
 		probe=0
 		ERROR=""
+		REASON=none
+	elif ! idevicepair -u "$DEVICE" validate >/dev/null 2>&1; then
+		probe=1
+		ERROR="the iPhone is not paired (run cellglide pair)"
+		REASON=not-paired
 	else
 		probe=1
 		ERROR="CellGlide is not sharing"
+		REASON=not-sharing
 	fi
 	next=$(cg_next_state "$STATE" "$FAILS" "$probe")
 	FAILS=${next#* }

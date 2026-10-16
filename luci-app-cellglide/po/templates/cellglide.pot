@@ -1,0 +1,286 @@
+msgid ""
+msgstr "Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "Name (optional)"
+msgstr ""
+
+msgid "Not a MAC address: %s"
+msgstr ""
+
+msgid "Add"
+msgstr ""
+
+msgid "CellGlide"
+msgstr ""
+
+msgid "Every device"
+msgstr ""
+
+msgid "Send every device on the LAN through the iPhone"
+msgstr ""
+
+msgid "When on, the switches below don't matter. System updates, cloud sync and TV streaming then all use the iPhone's data."
+msgstr ""
+
+msgid "Devices"
+msgstr ""
+
+msgid "Recognized by MAC address, so a new IP address doesn't matter."
+msgstr ""
+
+msgid "Add a device by hand"
+msgstr ""
+
+msgid "For devices that aren't in the DHCP leases, such as a NAS or printer with a fixed IP address."
+msgstr ""
+
+msgid "Name"
+msgstr ""
+
+msgid "IP address"
+msgstr ""
+
+msgid "MAC address"
+msgstr ""
+
+msgid "Through iPhone"
+msgstr ""
+
+msgid "No devices yet. They appear here once they get an address from this router."
+msgstr ""
+
+msgid "Note"
+msgstr ""
+
+msgid "Added by hand"
+msgstr ""
+
+msgid "Use the iPhone plugged into this router as the internet connection for chosen devices."
+msgstr ""
+
+msgid "Basic settings"
+msgstr ""
+
+msgid "General"
+msgstr ""
+
+msgid "Advanced"
+msgstr ""
+
+msgid "Enable"
+msgstr ""
+
+msgid "When off, every device uses the broadband line. The device list and settings are kept."
+msgstr ""
+
+msgid "When the iPhone is unavailable"
+msgstr ""
+
+msgid "Back to broadband: the chosen devices use the broadband line until the iPhone is back. Block: they have no internet, so nothing they send leaves over broadband."
+msgstr ""
+
+msgid "Back to broadband"
+msgstr ""
+
+msgid "Block (no internet)"
+msgstr ""
+
+msgid "DNS server (IPv4)"
+msgstr ""
+
+msgid "The chosen devices' DNS goes here through the iPhone. Only while the iPhone is in use and UDP works."
+msgstr ""
+
+msgid "DNS server (IPv6)"
+msgstr ""
+
+msgid "Name shown on the iPhone"
+msgstr ""
+
+msgid "Empty uses this router's hostname."
+msgstr ""
+
+msgid "iPhone proxy port"
+msgstr ""
+
+msgid "Local proxy port"
+msgstr ""
+
+msgid "The port on this router that leads to the iPhone's proxy."
+msgstr ""
+
+msgid "Pairing"
+msgstr ""
+
+msgid "The iPhone has to trust this router once. Plug it in, unlock it, then pair."
+msgstr ""
+
+msgid "iPhone"
+msgstr ""
+
+msgid "No iPhone connected"
+msgstr ""
+
+msgid "Not paired"
+msgstr ""
+
+msgid "Paired · %s"
+msgstr ""
+
+msgid "Paired"
+msgstr ""
+
+msgid "Pair"
+msgstr ""
+
+msgid "Tap Trust on the iPhone and enter its passcode."
+msgstr ""
+
+msgid "Paired."
+msgstr ""
+
+msgid "Pairing didn't finish: %s"
+msgstr ""
+
+msgid "no reply"
+msgstr ""
+
+msgid "About"
+msgstr ""
+
+msgid "Known limitations"
+msgstr ""
+
+msgid "CellGlide on the iPhone has to stay on screen while sharing."
+msgstr ""
+
+msgid "Chosen devices can't reach LAN devices by .lan names; use IP addresses. .local names still work."
+msgstr ""
+
+msgid "Devices going through the iPhone can't be reached from the internet (no port forwarding)."
+msgstr ""
+
+msgid "The router's own traffic (updates, DDNS) keeps using broadband."
+msgstr ""
+
+msgid "One iPhone at a time."
+msgstr ""
+
+msgid "Version"
+msgstr ""
+
+msgid "Documentation"
+msgstr ""
+
+msgid "Every device on the LAN"
+msgstr ""
+
+msgid "Meanwhile the chosen devices have no internet (block mode)."
+msgstr ""
+
+msgid "Meanwhile the chosen devices use the broadband line."
+msgstr ""
+
+msgid "CellGlide is not running"
+msgstr ""
+
+msgid "CellGlide is turned off"
+msgstr ""
+
+msgid "Start the service to use the iPhone."
+msgstr ""
+
+msgid "Turn it on in Settings to use the iPhone."
+msgstr ""
+
+msgid "Start"
+msgstr ""
+
+msgid "Settings"
+msgstr ""
+
+msgid "Using the iPhone's connection"
+msgstr ""
+
+msgid "Every device on the LAN goes online through the iPhone, since %s."
+msgstr ""
+
+msgid "%s go online through the iPhone, since %s."
+msgstr ""
+
+msgid "Plug the iPhone into the router's USB port, open CellGlide and tap Start sharing."
+msgstr ""
+
+msgid "The iPhone isn't paired with this router"
+msgstr ""
+
+msgid "Pair it in Settings, then tap Trust on the iPhone."
+msgstr ""
+
+msgid "CellGlide isn't sharing"
+msgstr ""
+
+msgid "Open CellGlide on the iPhone and tap Start sharing. Keep it on screen while in use."
+msgstr ""
+
+msgid "The connection to the iPhone didn't start"
+msgstr ""
+
+msgid "It retries every few seconds. If this stays, check the system log for cellglide."
+msgstr ""
+
+msgid "Waiting for the iPhone"
+msgstr ""
+
+msgid "Checking every 5 seconds."
+msgstr ""
+
+msgid "Not connected"
+msgstr ""
+
+msgid "In use since %s"
+msgstr ""
+
+msgid "Not in use"
+msgstr ""
+
+msgid "Works"
+msgstr ""
+
+msgid "Needs CellGlide 2.3 or later on the iPhone"
+msgstr ""
+
+msgid "TCP works; DNS is answered by the router meanwhile."
+msgstr ""
+
+msgid "Unknown"
+msgstr ""
+
+msgid "Sharing"
+msgstr ""
+
+msgid "UDP"
+msgstr ""
+
+msgid "Exit IP"
+msgstr ""
+
+msgid "The address websites see from the chosen devices"
+msgstr ""
+
+msgid "Manage devices"
+msgstr ""
+
+msgid "Change"
+msgstr ""
+
+msgid "Refreshed every 5 seconds."
+msgstr ""
+
+msgid "%d chosen device"
+msgid_plural "%d chosen devices"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Status"
+msgstr ""

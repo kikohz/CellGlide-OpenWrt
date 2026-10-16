@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=cellglide
-PKG_VERSION:=0.1.0
+PKG_VERSION:=0.2.0
 PKG_RELEASE:=1
 
 include $(INCLUDE_DIR)/package.mk
@@ -38,8 +38,10 @@ define Package/cellglide/install
 	$(INSTALL_BIN) ./files/usr/sbin/cellglide $(1)/usr/sbin/cellglide
 	$(INSTALL_DATA) ./files/usr/lib/cellglide/common.sh $(1)/usr/lib/cellglide/common.sh
 	$(INSTALL_DATA) ./files/usr/lib/cellglide/net.sh $(1)/usr/lib/cellglide/net.sh
+	echo "$(PKG_VERSION)-r$(PKG_RELEASE)" > $(1)/usr/lib/cellglide/version
 	$(INSTALL_BIN) ./files/usr/libexec/cellglide/daemon $(1)/usr/libexec/cellglide/daemon
 	$(INSTALL_BIN) ./files/usr/libexec/cellglide/probe $(1)/usr/libexec/cellglide/probe
+	$(INSTALL_BIN) ./files/usr/libexec/cellglide/report $(1)/usr/libexec/cellglide/report
 	$(INSTALL_DATA) ./files/usr/share/nftables.d/chain-pre/forward/cellglide.nft $(1)/usr/share/nftables.d/chain-pre/forward/cellglide.nft
 endef
 

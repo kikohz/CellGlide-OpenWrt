@@ -108,3 +108,10 @@ cg_leases() {
 		printf '%s  %-15s  %s%s\n' "$mac" "$ip" "$name" "$flag"
 	done
 }
+
+# Makes outside text (an iPhone's name) safe for the status file, which is sourced as
+# key='value' lines: no single quotes or line breaks. Not truncated: BusyBox cut counts
+# bytes and could split a multibyte character.
+cg_status_value() {
+	printf '%s' "$1" | tr -d "'\r\n"
+}

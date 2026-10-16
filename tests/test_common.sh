@@ -121,6 +121,13 @@ test_leases_all() {
 0c:29:8f:0a:99:12  10.10.10.141     -  (via iPhone)" "every device marked"
 }
 
+test_status_value() {
+	assert_eq "$(cg_status_value "Elok's iPhone")" "Eloks iPhone" "single quote dropped"
+	assert_eq "$(cg_status_value "$(printf 'a\nb')")" "ab" "newline dropped"
+	assert_eq "$(cg_status_value "iPhone 17 Pro")" "iPhone 17 Pro" "plain text kept"
+	assert_eq "$(cg_status_value "Elok’s 手机")" "Elok’s 手机" "multibyte text kept whole"
+}
+
 test_normalize_mac
 test_hev_config
 test_nft_ruleset_with_dns
@@ -130,3 +137,4 @@ test_next_state
 test_leases
 test_nft_ruleset_all
 test_leases_all
+test_status_value

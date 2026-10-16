@@ -1,0 +1,37 @@
+{
+	"admin/services/cellglide": {
+		"title": "CellGlide",
+		"order": 60,
+		"action": {
+			"type": "firstchild"
+		},
+		"depends": {
+			"acl": [ "luci-app-cellglide" ],
+			"uci": { "cellglide": true }
+		}
+	},
+	"admin/services/cellglide/status": {
+		"title": "Status",
+		"order": 10,
+		"action": {
+			"type": "view",
+			"path": "cellglide/status"
+		}
+	},
+	"admin/services/cellglide/devices": {
+		"title": "Devices",
+		"order": 20,
+		"action": {
+			"type": "view",
+			"path": "cellglide/devices"
+		}
+	},
+	"admin/services/cellglide/settings": {
+		"title": "Settings",
+		"order": 30,
+		"action": {
+			"type": "view",
+			"path": "cellglide/settings"
+		}
+	}
+}
