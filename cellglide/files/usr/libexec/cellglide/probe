@@ -1,0 +1,53 @@
+#!/usr/bin/ucode
+// Talks to the SOCKS5 server CellGlide shares over USB, reached through iproxy.
+//   probe greet PORT  exit 0 when the server answers the SOCKS5 greeting
+//   probe udp PORT    exit 0 when it accepts hev's UDP-in-TCP command (0x05),
+//                     3 when it refuses it (CellGlide before 2.3), 1 otherwise
+'use strict';
+
+import * as socket from 'socket';
+
+const mode = ARGV[0], port = +ARGV[1];
+
+function read_exact(conn, count) {
+	let data = '';
+	while (length(data) < count) {
+		const ready = socket.poll(2000, conn);
+		if (!ready?.[0]?.[1])
+			return null;
+		const chunk = conn.recv(count - length(data));
+		if (!length(chunk))
+			return null;
+		data += chunk;
+	}
+	return data;
+}
+
+if ((mode != 'greet' && mode != 'udp') || !port) {
+	warn('usage: probe greet|udp PORT\n');
+	exit(2);
+}
+
+// iproxy accepts the TCP connection even without an iPhone, then closes it,
+// so a successful connect alone proves nothing.
+const conn = socket.connect('127.0.0.1', port, null, 2000);
+if (!conn)
+	exit(1);
+
+conn.send(chr(5, 1, 0));
+if (read_exact(conn, 2) != chr(5, 0)) {
+	conn.close();
+	exit(1);
+}
+
+if (mode == 'udp') {
+	conn.send(chr(5, 5, 0, 1, 0, 0, 0, 0, 0, 0));
+	const reply = read_exact(conn, 2);
+	conn.close();
+	if (reply == null)
+		exit(1);
+	exit(ord(reply, 1) == 0 ? 0 : 3);
+}
+
+conn.close();
+exit(0);

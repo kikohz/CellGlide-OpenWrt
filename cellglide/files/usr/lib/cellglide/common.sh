@@ -1,0 +1,104 @@
+# shellcheck shell=sh
+# CG_* constants are used by the files that source this one
+# shellcheck disable=SC2034
+# Pure helpers for the cellglide daemon and command line: they only print text.
+
+CG_MARK=0x10000
+CG_TABLE=1986
+CG_TUN=cgtun
+CG_LAN=br-lan
+
+# Prints a MAC address as lowercase, colon-separated hex; fails for anything else.
+cg_normalize_mac() {
+	local mac
+	mac=$(printf '%s' "$1" | tr 'ABCDEF-' 'abcdef:')
+	case "$mac" in
+	[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f])
+		printf '%s\n' "$mac"
+		;;
+	*) return 1 ;;
+	esac
+}
+
+# hev-socks5-tunnel configuration. UDP rides inside the SOCKS TCP connection,
+# because iproxy forwards TCP only.
+cg_hev_config() {
+	cat <<EOF
+tunnel:
+  name: $CG_TUN
+  mtu: 1500
+  ipv4: 198.18.0.1
+  ipv6: 'fc00::cafe:1'
+socks5:
+  address: 127.0.0.1
+  port: $1
+  udp: 'tcp'
+misc:
+  log-level: warn
+  udp-read-write-timeout: 30000
+EOF
+}
+
+# An nft script that replaces table inet cellglide. Arguments: IPv4 DNS, IPv6 DNS,
+# 1 to redirect the chosen devices' DNS (only while the iPhone is usable), then their MACs.
+# Set and chain names carry a cg_ prefix: plain words like devices, mark and dns are nft keywords.
+cg_nft_ruleset() {
+	local dns4="$1" dns6="$2" redirect="$3" elements="" mac proto
+	shift 3
+	for mac in "$@"; do
+		elements="${elements:+$elements, }$mac"
+	done
+	printf 'table inet cellglide\ndelete table inet cellglide\ntable inet cellglide {\n'
+	printf '\tset cg_devices {\n\t\ttype ether_addr\n'
+	if [ -n "$elements" ]; then
+		printf '\t\telements = { %s }\n' "$elements"
+	fi
+	printf '\t}\n'
+	printf '\tchain cg_mark {\n\t\ttype filter hook prerouting priority mangle; policy accept;\n'
+	printf '\t\tiifname "%s" ether saddr @cg_devices meta mark set meta mark | %s\n\t}\n' "$CG_LAN" "$CG_MARK"
+	if [ "$redirect" = 1 ]; then
+		printf '\tchain cg_dns {\n\t\ttype nat hook prerouting priority dstnat; policy accept;\n'
+		for proto in udp tcp; do
+			printf '\t\tiifname "%s" ether saddr @cg_devices meta nfproto ipv4 %s dport 53 dnat ip to %s\n' "$CG_LAN" "$proto" "$dns4"
+			printf '\t\tiifname "%s" ether saddr @cg_devices meta nfproto ipv6 %s dport 53 dnat ip6 to %s\n' "$CG_LAN" "$proto" "$dns6"
+		done
+		printf '\t}\n'
+	fi
+	printf '}\n'
+}
+
+# Reads `ip route show` output and prints each non-default destination prefix.
+cg_lan_routes() {
+	awk '$1 != "default" && $1 != "unreachable" { print $1 }'
+}
+
+# Arguments: current state (up|down), consecutive failures, probe result (0 = success).
+# Prints the next state and failure count. One success is enough; two failures in a row
+# are needed to give up, so a single slow probe doesn't bounce the devices.
+cg_next_state() {
+	local fails
+	if [ "$3" = 0 ]; then
+		echo "up 0"
+		return
+	fi
+	fails=$(($2 + 1))
+	if [ "$fails" -ge 2 ]; then
+		echo "down $fails"
+	else
+		echo "$1 $fails"
+	fi
+}
+
+# Reads dnsmasq leases ("expiry mac ip name clientid") and prints one device per line,
+# marking the MACs given as arguments.
+cg_leases() {
+	local chosen=" $* " mac ip name flag
+	while read -r _ mac ip name _; do
+		case "$chosen" in
+		*" $mac "*) flag="  (via iPhone)" ;;
+		*) flag="" ;;
+		esac
+		[ "$name" = "*" ] && name="-"
+		printf '%s  %-15s  %s%s\n' "$mac" "$ip" "$name" "$flag"
+	done
+}
