@@ -11,4 +11,9 @@ PKG_RELEASE:=1
 
 include $(TOPDIR)/feeds/luci/luci.mk
 
+# Translations ship inside this package (root/usr/lib/lua/luci/i18n/*.lmo, compiled from
+# i18n/ by i18n/build.sh), not as luci-i18n-* packages: the pages follow the router's LuCI
+# language, and installing never adds a language to the router. They live in i18n/, not
+# po/, so luci.mk doesn't split them out.
+
 # call BuildPackage - OpenWrt buildroot signature

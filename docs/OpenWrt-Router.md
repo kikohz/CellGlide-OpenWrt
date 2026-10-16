@@ -35,7 +35,7 @@ opkg install ./cellglide_0.2.0-r1_all.ipk ./luci-app-cellglide_0.2.0-r1_all.ipk
 
 安装包没有签名，所以 `apk` 要加 `--allow-untrusted`。
 
-网页界面默认是英文。路由器后台用的是中文的话，再装中文翻译 `luci-i18n-cellglide-zh-cn`（和官方插件一样，翻译是单独的包）。后台是英文的就不要装，否则 CellGlide 这几页会变成中文，和后台其他页面不一致。
+网页界面跟随路由器后台的语言：后台是英文就显示英文，后台装了中文界面并选了中文就显示中文。中文翻译已经包含在 `luci-app-cellglide` 里，不用另外装翻译包，安装时也不会改动后台的语言设置。
 
 装完后服务会自动启用并启动，可以用 `cellglide status` 看一下运行状态。
 
@@ -165,7 +165,7 @@ apk del luci-app-cellglide cellglide
 opkg remove luci-app-cellglide cellglide
 ```
 
-装过中文翻译的，先卸 `luci-i18n-cellglide-zh-cn`。卸载后所有规则都会撤掉。`/etc/config/cellglide` 是配置文件，可能会保留，这是正常的。依赖包也不会被删。
+卸载后所有规则都会撤掉。`/etc/config/cellglide` 是配置文件，可能会保留，这是正常的。依赖包也不会被删。
 
 ---
 

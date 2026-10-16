@@ -56,7 +56,7 @@ jobs:
       - name: Collect the package
         run: |
           mkdir -p out
-          find bin/packages \( -name "cellglide*.${{ matrix.ext }}" -o -name "luci-app-cellglide*.${{ matrix.ext }}" -o -name "luci-i18n-cellglide-*.${{ matrix.ext }}" \) -exec cp {} out/ \;
+          find bin/packages \( -name "cellglide*.${{ matrix.ext }}" -o -name "luci-app-cellglide*.${{ matrix.ext }}" \) -exec cp {} out/ \;
           ls -l out
           test -n "$(ls out)"
       - uses: actions/upload-artifact@v4
