@@ -15,25 +15,27 @@
 
 ## 安装
 
-先到 GitHub Releases 页面（`openwrt-0.2.0`）下载安装包：`cellglide` 是后台服务，`luci-app-cellglide` 是路由器后台里的网页界面，`luci-i18n-cellglide-zh-cn` 是网页界面的中文（不需要网页界面的话可以只装第一个）。传到路由器的 `/tmp`，再安装。
+先到 GitHub Releases 页面（`openwrt-0.2.0`）下载安装包：`cellglide` 是后台服务，`luci-app-cellglide` 是路由器后台里的网页界面（不需要网页界面的话可以只装第一个）。传到路由器的 `/tmp`，再安装。
 
 OpenWrt 25.12（`apk`）：
 
 ```sh
 apk update
-apk add --allow-untrusted ./cellglide-0.2.0-r1.apk ./luci-app-cellglide-0.2.0-r1.apk ./luci-i18n-cellglide-zh-cn-*.apk
+apk add --allow-untrusted ./cellglide-0.2.0-r1.apk ./luci-app-cellglide-0.2.0-r1.apk
 ```
 
 OpenWrt 24.10（`opkg`）：
 
 ```sh
 opkg update
-opkg install ./cellglide_0.2.0-r1_all.ipk ./luci-app-cellglide_0.2.0-r1_all.ipk ./luci-i18n-cellglide-zh-cn_*.ipk
+opkg install ./cellglide_0.2.0-r1_all.ipk ./luci-app-cellglide_0.2.0-r1_all.ipk
 ```
 
 安装时会顺带从官方源装好依赖：`usbmuxd`、`libusbmuxd-utils`、`libimobiledevice-utils`、`hev-socks5-tunnel`、`kmod-tun`、`ucode`、`ucode-mod-socket`。所以安装前要先 `update`，路由器也要能上网。
 
 安装包没有签名，所以 `apk` 要加 `--allow-untrusted`。
+
+网页界面默认是英文。路由器后台用的是中文的话，再装中文翻译 `luci-i18n-cellglide-zh-cn`（和官方插件一样，翻译是单独的包）。后台是英文的就不要装，否则 CellGlide 这几页会变成中文，和后台其他页面不一致。
 
 装完后服务会自动启用并启动，可以用 `cellglide status` 看一下运行状态。
 
@@ -154,16 +156,16 @@ uci commit cellglide
 ## 卸载
 
 ```sh
-apk del luci-i18n-cellglide-zh-cn luci-app-cellglide cellglide
+apk del luci-app-cellglide cellglide
 ```
 
 24.10 用：
 
 ```sh
-opkg remove luci-i18n-cellglide-zh-cn luci-app-cellglide cellglide
+opkg remove luci-app-cellglide cellglide
 ```
 
-卸载后所有规则都会撤掉。`/etc/config/cellglide` 是配置文件，可能会保留，这是正常的。依赖包也不会被删。
+装过中文翻译的，先卸 `luci-i18n-cellglide-zh-cn`。卸载后所有规则都会撤掉。`/etc/config/cellglide` 是配置文件，可能会保留，这是正常的。依赖包也不会被删。
 
 ---
 
