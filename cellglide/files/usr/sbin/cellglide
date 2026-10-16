@@ -12,7 +12,9 @@ usage() {
 Usage: cellglide <command>
   pair               Pair the iPhone plugged into this router (tap Trust on the phone)
   add MAC [NAME]     Send this device's traffic through the iPhone
+  add all            Send every device on the LAN through the iPhone
   remove MAC         Send this device back to the broadband line
+  remove all         Go back to only the devices added one by one
   list               Show devices on the LAN; chosen ones are marked
   status             Show whether the iPhone is in use
 EOF
@@ -79,6 +81,10 @@ show_status() {
 		echo "Exit IP: $(curl -s -m 5 --interface "$CG_TUN" https://speed.cloudflare.com/cdn-cgi/trace | sed -n 's/^ip=//p')"
 	fi
 	echo "Devices:"
+	if [ "$($UCI -q get cellglide.main.all)" = 1 ]; then
+		echo "  all devices on the LAN"
+		return 0
+	fi
 	while mac=$($UCI -q get "cellglide.@device[$i].mac"); do
 		name=$($UCI -q get "cellglide.@device[$i].name")
 		echo "  $mac${name:+  $name}"
@@ -93,6 +99,12 @@ pair)
 	exec idevicepair pair
 	;;
 add)
+	if [ "$2" = all ]; then
+		$UCI set cellglide.main.all=1
+		apply
+		echo "Every device on the LAN now uses the iPhone"
+		exit 0
+	fi
 	mac=$(mac_argument "$2") || exit 1
 	if index_of "$mac" >/dev/null; then
 		echo "$mac already uses the iPhone"
@@ -105,6 +117,16 @@ add)
 	echo "$mac now uses the iPhone"
 	;;
 remove)
+	if [ "$2" = all ]; then
+		$UCI -q delete cellglide.main.all
+		apply
+		if [ -n "$(chosen)" ]; then
+			echo "Only the devices you added use the iPhone now"
+		else
+			echo "Every device is back on the broadband line"
+		fi
+		exit 0
+	fi
 	mac=$(mac_argument "$2") || exit 1
 	i=$(index_of "$mac") || {
 		echo "$mac is not in the list"
@@ -117,6 +139,10 @@ remove)
 list)
 	if [ ! -r /tmp/dhcp.leases ]; then
 		echo "No DHCP leases found"
+		exit 0
+	fi
+	if [ "$($UCI -q get cellglide.main.all)" = 1 ]; then
+		cg_leases all </tmp/dhcp.leases
 		exit 0
 	fi
 	# shellcheck disable=SC2046 # one argument per MAC

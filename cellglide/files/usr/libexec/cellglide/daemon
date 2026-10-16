@@ -31,6 +31,9 @@ config_get FALLBACK main fallback broadband
 config_get DNS4 main dns 1.1.1.1
 config_get DNS6 main dns6 2606:4700:4700::1111
 config_foreach add_device device
+# "cellglide add all": every LAN device, whatever is listed.
+config_get_bool ALL main all 0
+[ "$ALL" = 1 ] && MACS="all"
 
 log() {
 	logger -t cellglide "$*"

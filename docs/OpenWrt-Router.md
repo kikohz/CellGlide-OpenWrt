@@ -67,6 +67,20 @@ cellglide add AA:BB:CC:DD:EE:FF 我的Mac
 cellglide remove AA:BB:CC:DD:EE:FF
 ```
 
+也可以让局域网里所有设备都走手机：
+
+```sh
+cellglide add all
+```
+
+改回只让单独添加的设备走手机：
+
+```sh
+cellglide remove all
+```
+
+所有设备都走手机时，全家的系统更新、云同步、电视视频都会用手机流量，用量会涨得很快。路由器自己的流量（插件、软件更新）仍然走宽带；局域网内互相访问不受影响。
+
 ## 开始使用
 
 在手机上打开 CellGlide，开始共享。然后在路由器上查看：
@@ -103,6 +117,7 @@ uci commit cellglide
 | `fallback` | `broadband` | 手机不可用时的行为：`broadband` 回到宽带，`block` 断网 |
 | `dns` | `1.1.1.1` | 手机在用时，选中设备的 IPv4 DNS 请求会被转到这个地址（仅当 UDP 可用时；否则 DNS 留在路由器） |
 | `dns6` | `2606:4700:4700::1111` | 手机在用时，选中设备的 IPv6 DNS 请求会被转到这个地址（仅当 UDP 可用时） |
+| `all` | 不设置 | 设为 `1` 时局域网所有设备都走手机，等同于 `cellglide add all` |
 
 每台选中的设备是一个 `device` 段，有 `mac` 和 `name` 两项，一般用 `cellglide add` 来加，不用手改。
 

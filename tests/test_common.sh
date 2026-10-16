@@ -92,6 +92,35 @@ test_leases() {
 0c:29:8f:0a:99:12  10.10.10.141     -  (via iPhone)" "lease table"
 }
 
+test_nft_ruleset_all() {
+	assert_eq "$(cg_nft_ruleset 1.1.1.1 2606:4700:4700::1111 1 all)" "table inet cellglide
+delete table inet cellglide
+table inet cellglide {
+	set cg_devices {
+		type ether_addr
+	}
+	chain cg_mark {
+		type filter hook prerouting priority mangle; policy accept;
+		iifname \"br-lan\" meta mark set meta mark | 0x10000
+	}
+	chain cg_dns {
+		type nat hook prerouting priority dstnat; policy accept;
+		iifname \"br-lan\" meta nfproto ipv4 udp dport 53 dnat ip to 1.1.1.1
+		iifname \"br-lan\" meta nfproto ipv6 udp dport 53 dnat ip6 to 2606:4700:4700::1111
+		iifname \"br-lan\" meta nfproto ipv4 tcp dport 53 dnat ip to 1.1.1.1
+		iifname \"br-lan\" meta nfproto ipv6 tcp dport 53 dnat ip6 to 2606:4700:4700::1111
+	}
+}" "every LAN device"
+}
+
+test_leases_all() {
+	list=$(printf '%s\n' \
+		'1792085847 9a:da:5c:9c:8f:68 10.10.10.227 iPhone 01:9a' \
+		'1792076972 0c:29:8f:0a:99:12 10.10.10.141 * 01:0c' | cg_leases all)
+	assert_eq "$list" "9a:da:5c:9c:8f:68  10.10.10.227     iPhone  (via iPhone)
+0c:29:8f:0a:99:12  10.10.10.141     -  (via iPhone)" "every device marked"
+}
+
 test_normalize_mac
 test_hev_config
 test_nft_ruleset_with_dns
@@ -99,3 +128,5 @@ test_nft_ruleset_empty
 test_lan_routes
 test_next_state
 test_leases
+test_nft_ruleset_all
+test_leases_all

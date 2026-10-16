@@ -40,12 +40,18 @@ EOF
 }
 
 # An nft script that replaces table inet cellglide. Arguments: IPv4 DNS, IPv6 DNS,
-# 1 to redirect the chosen devices' DNS (only while the iPhone is usable), then their MACs.
+# 1 to redirect the chosen devices' DNS (only while the iPhone is usable), then their MACs,
+# or the single word "all" for every device on the LAN.
 # Set and chain names carry a cg_ prefix: plain words like devices, mark and dns are nft keywords.
 cg_nft_ruleset() {
-	local dns4="$1" dns6="$2" redirect="$3" elements="" mac proto
+	local dns4="$1" dns6="$2" redirect="$3" elements="" match="ether saddr @cg_devices " mac proto
 	shift 3
 	for mac in "$@"; do
+		if [ "$mac" = all ]; then
+			match=""
+			elements=""
+			break
+		fi
 		elements="${elements:+$elements, }$mac"
 	done
 	printf 'table inet cellglide\ndelete table inet cellglide\ntable inet cellglide {\n'
@@ -55,12 +61,12 @@ cg_nft_ruleset() {
 	fi
 	printf '\t}\n'
 	printf '\tchain cg_mark {\n\t\ttype filter hook prerouting priority mangle; policy accept;\n'
-	printf '\t\tiifname "%s" ether saddr @cg_devices meta mark set meta mark | %s\n\t}\n' "$CG_LAN" "$CG_MARK"
+	printf '\t\tiifname "%s" %smeta mark set meta mark | %s\n\t}\n' "$CG_LAN" "$match" "$CG_MARK"
 	if [ "$redirect" = 1 ]; then
 		printf '\tchain cg_dns {\n\t\ttype nat hook prerouting priority dstnat; policy accept;\n'
 		for proto in udp tcp; do
-			printf '\t\tiifname "%s" ether saddr @cg_devices meta nfproto ipv4 %s dport 53 dnat ip to %s\n' "$CG_LAN" "$proto" "$dns4"
-			printf '\t\tiifname "%s" ether saddr @cg_devices meta nfproto ipv6 %s dport 53 dnat ip6 to %s\n' "$CG_LAN" "$proto" "$dns6"
+			printf '\t\tiifname "%s" %smeta nfproto ipv4 %s dport 53 dnat ip to %s\n' "$CG_LAN" "$match" "$proto" "$dns4"
+			printf '\t\tiifname "%s" %smeta nfproto ipv6 %s dport 53 dnat ip6 to %s\n' "$CG_LAN" "$match" "$proto" "$dns6"
 		done
 		printf '\t}\n'
 	fi
@@ -90,12 +96,12 @@ cg_next_state() {
 }
 
 # Reads dnsmasq leases ("expiry mac ip name clientid") and prints one device per line,
-# marking the MACs given as arguments.
+# marking the MACs given as arguments (or every device for "all").
 cg_leases() {
 	local chosen=" $* " mac ip name flag
 	while read -r _ mac ip name _; do
 		case "$chosen" in
-		*" $mac "*) flag="  (via iPhone)" ;;
+		*" all "* | *" $mac "*) flag="  (via iPhone)" ;;
 		*) flag="" ;;
 		esac
 		[ "$name" = "*" ] && name="-"
