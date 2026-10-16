@@ -33,20 +33,20 @@ test_nft_ruleset_with_dns() {
 	assert_eq "$(cg_nft_ruleset 1.1.1.1 2606:4700:4700::1111 1 aa:bb:cc:dd:ee:ff 0c:29:8f:0a:99:12)" "table inet cellglide
 delete table inet cellglide
 table inet cellglide {
-	set devices {
+	set cg_devices {
 		type ether_addr
 		elements = { aa:bb:cc:dd:ee:ff, 0c:29:8f:0a:99:12 }
 	}
-	chain mark {
+	chain cg_mark {
 		type filter hook prerouting priority mangle; policy accept;
-		iifname \"br-lan\" ether saddr @devices meta mark set meta mark | 0x10000
+		iifname \"br-lan\" ether saddr @cg_devices meta mark set meta mark | 0x10000
 	}
-	chain dns {
+	chain cg_dns {
 		type nat hook prerouting priority dstnat; policy accept;
-		iifname \"br-lan\" ether saddr @devices meta nfproto ipv4 udp dport 53 dnat ip to 1.1.1.1
-		iifname \"br-lan\" ether saddr @devices meta nfproto ipv6 udp dport 53 dnat ip6 to 2606:4700:4700::1111
-		iifname \"br-lan\" ether saddr @devices meta nfproto ipv4 tcp dport 53 dnat ip to 1.1.1.1
-		iifname \"br-lan\" ether saddr @devices meta nfproto ipv6 tcp dport 53 dnat ip6 to 2606:4700:4700::1111
+		iifname \"br-lan\" ether saddr @cg_devices meta nfproto ipv4 udp dport 53 dnat ip to 1.1.1.1
+		iifname \"br-lan\" ether saddr @cg_devices meta nfproto ipv6 udp dport 53 dnat ip6 to 2606:4700:4700::1111
+		iifname \"br-lan\" ether saddr @cg_devices meta nfproto ipv4 tcp dport 53 dnat ip to 1.1.1.1
+		iifname \"br-lan\" ether saddr @cg_devices meta nfproto ipv6 tcp dport 53 dnat ip6 to 2606:4700:4700::1111
 	}
 }" "ruleset with DNS redirect"
 }
@@ -55,12 +55,12 @@ test_nft_ruleset_empty() {
 	assert_eq "$(cg_nft_ruleset 1.1.1.1 2606:4700:4700::1111 0)" "table inet cellglide
 delete table inet cellglide
 table inet cellglide {
-	set devices {
+	set cg_devices {
 		type ether_addr
 	}
-	chain mark {
+	chain cg_mark {
 		type filter hook prerouting priority mangle; policy accept;
-		iifname \"br-lan\" ether saddr @devices meta mark set meta mark | 0x10000
+		iifname \"br-lan\" ether saddr @cg_devices meta mark set meta mark | 0x10000
 	}
 }" "no devices, no DNS redirect"
 }

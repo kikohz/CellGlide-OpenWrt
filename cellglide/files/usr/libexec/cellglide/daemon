@@ -48,7 +48,8 @@ lan_routes() {
 
 load_nft() {
 	# shellcheck disable=SC2086 # one argument per MAC
-	cg_nft_ruleset "$DNS4" "$DNS6" "$1" $MACS | cg_nft_apply
+	cg_nft_ruleset "$DNS4" "$DNS6" "$1" $MACS | cg_nft_apply 2>"$RUN/nft.err" ||
+		log "nft rules failed to load: $(head -n 3 "$RUN/nft.err" | tr '\n' ' ')"
 }
 
 hev_stop() {
@@ -128,7 +129,7 @@ go_down() {
 cleanup() {
 	hev_stop
 	cg_teardown
-	rm -f "$RUN/status" "$RUN/status.tmp" "$RUN/hev.yml"
+	rm -f "$RUN/status" "$RUN/status.tmp" "$RUN/hev.yml" "$RUN/nft.err"
 	exit 0
 }
 
