@@ -19,6 +19,10 @@ DEVICE=""
 NAME=""
 NAMED=""
 EXIT=""
+# Who answers the chosen devices' DNS: phone (the app's resolver, through the forwarder),
+# public (the dns/dns6 servers through the iPhone) or router (dnsmasq, over broadband).
+DNS=router
+CHECKS=0
 ERROR=""
 # What the web interface translates: none, no-iphone, not-paired, not-sharing or tunnel.
 REASON=none
@@ -35,6 +39,8 @@ config_get LOCAL_PORT main local_port 19876
 config_get FALLBACK main fallback broadband
 config_get DNS4 main dns 1.1.1.1
 config_get DNS6 main dns6 2606:4700:4700::1111
+config_get DNS_PORT main dns_port 5354
+config_get WATCH_PORT main local_watch_port 19088
 config_foreach add_device device
 # "cellglide add all": every LAN device, whatever is listed.
 config_get_bool ALL main all 0
@@ -45,8 +51,8 @@ log() {
 }
 
 write_status() {
-	printf "state='%s'\nsince='%s'\ndevice='%s'\nname='%s'\nudp='%s'\nexit='%s'\nreason='%s'\nerror='%s'\n" \
-		"$STATE" "$SINCE" "$DEVICE" "$NAME" "$UDP" "$EXIT" "$REASON" "$ERROR" >"$RUN/status.tmp" &&
+	printf "state='%s'\nsince='%s'\ndevice='%s'\nname='%s'\nudp='%s'\ndns='%s'\nexit='%s'\nreason='%s'\nerror='%s'\n" \
+		"$STATE" "$SINCE" "$DEVICE" "$NAME" "$UDP" "$DNS" "$EXIT" "$REASON" "$ERROR" >"$RUN/status.tmp" &&
 		mv "$RUN/status.tmp" "$RUN/status"
 }
 
@@ -133,18 +139,33 @@ go_up() {
 	3) UDP=no ;;
 	*) UDP=unknown ;;
 	esac
-	# Without UDP-in-TCP on the iPhone the DNS redirect would break name resolution,
-	# so DNS then stays on the router's dnsmasq.
-	if [ "$UDP" = yes ]; then
-		load_nft 1
-	else
-		load_nft 0
-	fi
+	choose_dns
 	exit_address
 	log "using the iPhone for:${MACS:- no devices yet}"
 }
 
+# The app's own resolver when it's on (it reaches the phone over TCP, so it works without
+# UDP-in-TCP too); else the public servers through the iPhone when UDP works; else dnsmasq.
+choose_dns() {
+	local dns
+	if "$PROBE" dns "$WATCH_PORT"; then
+		dns=phone
+	elif [ "$UDP" = yes ]; then
+		dns=public
+	else
+		dns=router
+	fi
+	[ "$dns" = "$DNS" ] && [ "$1" = keep ] && return
+	DNS=$dns
+	case "$DNS" in
+	phone) load_nft "local:$DNS_PORT" ;;
+	public) load_nft 1 ;;
+	*) load_nft 0 ;;
+	esac
+}
+
 go_down() {
+	DNS=router
 	load_nft 0
 	cg_tunnel_down
 	hev_stop
@@ -208,6 +229,13 @@ while :; do
 		go_down
 		STATE=down
 		SINCE=$(date +%s)
+	elif [ "$STATE" = up ]; then
+		# The app's DNS can be switched on or off while sharing; look again about once a minute.
+		CHECKS=$((CHECKS + 1))
+		if [ "$CHECKS" -ge 12 ]; then
+			CHECKS=0
+			choose_dns keep
+		fi
 	fi
 	write_status
 	# Sleep in the background so SIGTERM is handled right away.

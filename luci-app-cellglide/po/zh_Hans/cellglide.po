@@ -88,20 +88,32 @@ msgstr "回到宽带"
 msgid "Block (no internet)"
 msgstr "断网（block）"
 
-msgid "DNS server (IPv4)"
-msgstr "DNS 服务器（IPv4）"
+msgid "DNS"
+msgstr "DNS"
 
-msgid "The chosen devices' DNS goes here through the iPhone. Only while the iPhone is in use and UDP works."
-msgstr "被选设备的 DNS 经手机发到这里。仅在手机在用、且 UDP 可用时生效。"
-
-msgid "DNS server (IPv6)"
-msgstr "DNS 服务器（IPv6）"
+msgid "The chosen devices follow the DNS settings in CellGlide on the iPhone (encrypted DNS included), as a Mac does."
+msgstr "被选设备的 DNS 跟随 iPhone 上 CellGlide 的设置（包括加密 DNS），和 Mac 一样。"
 
 msgid "Name shown on the iPhone"
 msgstr "在 iPhone 上显示的名字"
 
 msgid "Empty uses this router's hostname."
 msgstr "留空则用路由器的主机名。"
+
+msgid "Fallback DNS (IPv4)"
+msgstr "备用 DNS（IPv4）"
+
+msgid "Used through the iPhone when CellGlide DNS is turned off on the iPhone. Needs CellGlide 2.3 or later."
+msgstr "iPhone 上的 CellGlide 关闭 DNS 时，经手机发到这里。需要 CellGlide 2.3 或更新版本。"
+
+msgid "Fallback DNS (IPv6)"
+msgstr "备用 DNS（IPv6）"
+
+msgid "Local DNS port"
+msgstr "本机 DNS 端口"
+
+msgid "Where this router takes the chosen devices' DNS before handing it to the iPhone."
+msgstr "路由器在这个端口接收被选设备的 DNS，再交给 iPhone。"
 
 msgid "iPhone proxy port"
 msgstr "iPhone 代理端口"
@@ -253,8 +265,8 @@ msgstr "正常"
 msgid "Needs CellGlide 2.3 or later on the iPhone"
 msgstr "需要 iPhone 上的 CellGlide 2.3 或更新版本"
 
-msgid "TCP works; DNS is answered by the router meanwhile."
-msgstr "TCP 照常可用；在此期间 DNS 由路由器解析。"
+msgid "Websites work; calls, games and other UDP apps don't yet."
+msgstr "网页照常可用；通话、游戏等用 UDP 的应用暂时不行。"
 
 msgid "Unknown"
 msgstr "未知"
@@ -264,6 +276,18 @@ msgstr "共享状态"
 
 msgid "UDP"
 msgstr "UDP"
+
+msgid "Follows the DNS settings in CellGlide on the iPhone"
+msgstr "跟随 iPhone 上 CellGlide 的 DNS 设置"
+
+msgid "%s through the iPhone"
+msgstr "%s（经手机）"
+
+msgid "CellGlide DNS is off on the iPhone."
+msgstr "iPhone 上的 CellGlide 关闭了 DNS。"
+
+msgid "Answered by the router (over broadband)"
+msgstr "由路由器解析（走宽带）"
 
 msgid "Exit IP"
 msgstr "出口 IP"
@@ -280,9 +304,9 @@ msgstr "修改"
 msgid "Refreshed every 5 seconds."
 msgstr "每 5 秒刷新一次。"
 
+msgid "Status"
+msgstr "状态"
+
 msgid "%d chosen device"
 msgid_plural "%d chosen devices"
 msgstr[0] "%d 台被选设备"
-
-msgid "Status"
-msgstr "状态"

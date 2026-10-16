@@ -35,19 +35,29 @@ return view.extend({
 		o.value('block', _('Block (no internet)'));
 		o.default = 'broadband';
 
-		o = s.taboption('general', form.Value, 'dns', _('DNS server (IPv4)'),
-			_('The chosen devices\' DNS goes here through the iPhone. Only while the iPhone is in use and UDP works.'));
-		o.datatype = 'ip4addr';
-		o.placeholder = '1.1.1.1';
-
-		o = s.taboption('general', form.Value, 'dns6', _('DNS server (IPv6)'));
-		o.datatype = 'ip6addr';
-		o.placeholder = '2606:4700:4700::1111';
+		o = s.taboption('general', form.DummyValue, '_dns', _('DNS'));
+		o.cfgvalue = function() {
+			return _('The chosen devices follow the DNS settings in CellGlide on the iPhone (encrypted DNS included), as a Mac does.');
+		};
 
 		o = s.taboption('advanced', form.Value, 'name', _('Name shown on the iPhone'),
 			_('Empty uses this router\'s hostname.'));
 		o.placeholder = 'OpenWrt';
 		o.datatype = 'maxlength(64)';
+
+		o = s.taboption('advanced', form.Value, 'dns', _('Fallback DNS (IPv4)'),
+			_('Used through the iPhone when CellGlide DNS is turned off on the iPhone. Needs CellGlide 2.3 or later.'));
+		o.datatype = 'ip4addr';
+		o.placeholder = '1.1.1.1';
+
+		o = s.taboption('advanced', form.Value, 'dns6', _('Fallback DNS (IPv6)'));
+		o.datatype = 'ip6addr';
+		o.placeholder = '2606:4700:4700::1111';
+
+		o = s.taboption('advanced', form.Value, 'dns_port', _('Local DNS port'),
+			_('Where this router takes the chosen devices\' DNS before handing it to the iPhone.'));
+		o.datatype = 'port';
+		o.placeholder = '5354';
 
 		o = s.taboption('advanced', form.Value, 'socks_port', _('iPhone proxy port'));
 		o.datatype = 'port';

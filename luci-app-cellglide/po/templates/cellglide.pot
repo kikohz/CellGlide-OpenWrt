@@ -85,19 +85,31 @@ msgstr ""
 msgid "Block (no internet)"
 msgstr ""
 
-msgid "DNS server (IPv4)"
+msgid "DNS"
 msgstr ""
 
-msgid "The chosen devices' DNS goes here through the iPhone. Only while the iPhone is in use and UDP works."
-msgstr ""
-
-msgid "DNS server (IPv6)"
+msgid "The chosen devices follow the DNS settings in CellGlide on the iPhone (encrypted DNS included), as a Mac does."
 msgstr ""
 
 msgid "Name shown on the iPhone"
 msgstr ""
 
 msgid "Empty uses this router's hostname."
+msgstr ""
+
+msgid "Fallback DNS (IPv4)"
+msgstr ""
+
+msgid "Used through the iPhone when CellGlide DNS is turned off on the iPhone. Needs CellGlide 2.3 or later."
+msgstr ""
+
+msgid "Fallback DNS (IPv6)"
+msgstr ""
+
+msgid "Local DNS port"
+msgstr ""
+
+msgid "Where this router takes the chosen devices' DNS before handing it to the iPhone."
 msgstr ""
 
 msgid "iPhone proxy port"
@@ -250,7 +262,7 @@ msgstr ""
 msgid "Needs CellGlide 2.3 or later on the iPhone"
 msgstr ""
 
-msgid "TCP works; DNS is answered by the router meanwhile."
+msgid "Websites work; calls, games and other UDP apps don't yet."
 msgstr ""
 
 msgid "Unknown"
@@ -260,6 +272,18 @@ msgid "Sharing"
 msgstr ""
 
 msgid "UDP"
+msgstr ""
+
+msgid "Follows the DNS settings in CellGlide on the iPhone"
+msgstr ""
+
+msgid "%s through the iPhone"
+msgstr ""
+
+msgid "CellGlide DNS is off on the iPhone."
+msgstr ""
+
+msgid "Answered by the router (over broadband)"
 msgstr ""
 
 msgid "Exit IP"
@@ -277,10 +301,10 @@ msgstr ""
 msgid "Refreshed every 5 seconds."
 msgstr ""
 
+msgid "Status"
+msgstr ""
+
 msgid "%d chosen device"
 msgid_plural "%d chosen devices"
 msgstr[0] ""
 msgstr[1] ""
-
-msgid "Status"
-msgstr ""

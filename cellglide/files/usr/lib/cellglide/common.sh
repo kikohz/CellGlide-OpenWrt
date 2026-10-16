@@ -39,9 +39,11 @@ misc:
 EOF
 }
 
-# An nft script that replaces table inet cellglide. Arguments: IPv4 DNS, IPv6 DNS,
-# 1 to redirect the chosen devices' DNS (only while the iPhone is usable), then their MACs,
-# or the single word "all" for every device on the LAN.
+# An nft script that replaces table inet cellglide. Arguments: IPv4 DNS, IPv6 DNS, what to
+# do with the chosen devices' DNS while the iPhone is usable (0 leave it to the router,
+# 1 send it to the IPv4/IPv6 DNS through the iPhone, local:PORT hand it to the router's
+# forwarder to the iPhone's resolver on PORT), then their MACs, or the single word "all"
+# for every device on the LAN.
 # Set and chain names carry a cg_ prefix: plain words like devices, mark and dns are nft keywords.
 cg_nft_ruleset() {
 	local dns4="$1" dns6="$2" redirect="$3" elements="" match="ether saddr @cg_devices " mac proto
@@ -62,14 +64,23 @@ cg_nft_ruleset() {
 	printf '\t}\n'
 	printf '\tchain cg_mark {\n\t\ttype filter hook prerouting priority mangle; policy accept;\n'
 	printf '\t\tiifname "%s" %smeta mark set meta mark | %s\n\t}\n' "$CG_LAN" "$match" "$CG_MARK"
-	if [ "$redirect" = 1 ]; then
+	case "$redirect" in
+	local:*)
+		printf '\tchain cg_dns {\n\t\ttype nat hook prerouting priority dstnat; policy accept;\n'
+		for proto in udp tcp; do
+			printf '\t\tiifname "%s" %s%s dport 53 redirect to :%s\n' "$CG_LAN" "$match" "$proto" "${redirect#local:}"
+		done
+		printf '\t}\n'
+		;;
+	1)
 		printf '\tchain cg_dns {\n\t\ttype nat hook prerouting priority dstnat; policy accept;\n'
 		for proto in udp tcp; do
 			printf '\t\tiifname "%s" %smeta nfproto ipv4 %s dport 53 dnat ip to %s\n' "$CG_LAN" "$match" "$proto" "$dns4"
 			printf '\t\tiifname "%s" %smeta nfproto ipv6 %s dport 53 dnat ip6 to %s\n' "$CG_LAN" "$match" "$proto" "$dns6"
 		done
 		printf '\t}\n'
-	fi
+		;;
+	esac
 	printf '}\n'
 }
 

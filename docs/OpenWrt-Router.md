@@ -103,6 +103,12 @@ cellglide status
 
 正常时会显示 `in use`，UDP 一项显示 `works`。在选中的设备上运行 `curl -4 https://speed.cloudflare.com/cdn-cgi/trace`，`ip=` 应该是手机的出口 IP。
 
+## DNS
+
+手机在用时，选中设备的 DNS 交给 iPhone 上的 CellGlide 解析，跟随 App 里的 DNS 设置（加密 DNS、缓存、加密 DNS 连不上时改用运营商 DNS），和 Mac 一样。这条路走 TCP，所以旧版 App 也能用。
+
+App 里关闭了 CellGlide DNS 时，改用备用 DNS（默认 1.1.1.1）经手机发出；如果 App 还不支持 UDP，就留给路由器自己解析。`cellglide status` 和网页的状态页会显示当前是哪一种。
+
 ## 手机不可用时
 
 拔掉手机，或者在 App 里停止共享，大约 10 秒后，选中的设备会自动回到宽带。重新插上并开始共享，10 秒内会切回手机。
@@ -127,8 +133,11 @@ uci commit cellglide
 | `socks_port` | `9876` | 手机上 CellGlide 的 SOCKS5 端口 |
 | `local_port` | `19876` | 转发到路由器本机的端口 |
 | `fallback` | `broadband` | 手机不可用时的行为：`broadband` 回到宽带，`block` 断网 |
-| `dns` | `1.1.1.1` | 手机在用时，选中设备的 IPv4 DNS 请求会被转到这个地址（仅当 UDP 可用时；否则 DNS 留在路由器） |
-| `dns6` | `2606:4700:4700::1111` | 手机在用时，选中设备的 IPv6 DNS 请求会被转到这个地址（仅当 UDP 可用时） |
+| `dns` | `1.1.1.1` | 备用 DNS：iPhone 上的 CellGlide 关闭了 DNS 时，选中设备的 IPv4 DNS 经手机发到这里（需要 UDP，也就是 App 2.3 或更新版本） |
+| `dns6` | `2606:4700:4700::1111` | 同上，IPv6 |
+| `dns_port` | `5354` | 路由器接收选中设备 DNS、再交给 iPhone 的端口 |
+| `local_watch_port` | `19088` | 转发到手机 8088 端口的本机端口（DNS 和向手机报名字都用它） |
+| `name` | 不设置 | 在 iPhone 上显示的名字，不设时用路由器的主机名 |
 | `all` | 不设置 | 设为 `1` 时局域网所有设备都走手机，等同于 `cellglide add all` |
 
 每台选中的设备是一个 `device` 段，有 `mac` 和 `name` 两项，一般用 `cellglide add` 来加，不用手改。

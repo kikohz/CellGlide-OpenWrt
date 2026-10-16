@@ -105,7 +105,7 @@ function table(s) {
 	var udp;
 	switch (s.udp) {
 	case 'yes': udp = _('Works'); break;
-	case 'no': udp = [ _('Needs CellGlide 2.3 or later on the iPhone'), small(_('TCP works; DNS is answered by the router meanwhile.')) ]; break;
+	case 'no': udp = [ _('Needs CellGlide 2.3 or later on the iPhone'), small(_('Websites work; calls, games and other UDP apps don\'t yet.')) ]; break;
 	default: udp = s.state == 'up' ? _('Unknown') : '—';
 	}
 	var rows = [
@@ -113,6 +113,15 @@ function table(s) {
 		row(_('Sharing'), sharing),
 		row(_('UDP'), udp)
 	];
+	if (s.state == 'up') {
+		var dns;
+		switch (s.dns) {
+		case 'phone': dns = _('Follows the DNS settings in CellGlide on the iPhone'); break;
+		case 'public': dns = [ _('%s through the iPhone').format(s.dns4), small(_('CellGlide DNS is off on the iPhone.')) ]; break;
+		default: dns = _('Answered by the router (over broadband)');
+		}
+		rows.push(row(_('DNS'), dns));
+	}
 	if (s.state == 'up' && s.exit)
 		rows.push(row(_('Exit IP'), [ s.exit, small(_('The address websites see from the chosen devices')) ]));
 	rows.push(row(_('Devices'), devicesText(s), link('devices', _('Manage devices'))));

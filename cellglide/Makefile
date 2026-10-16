@@ -42,6 +42,7 @@ define Package/cellglide/install
 	$(INSTALL_BIN) ./files/usr/libexec/cellglide/daemon $(1)/usr/libexec/cellglide/daemon
 	$(INSTALL_BIN) ./files/usr/libexec/cellglide/probe $(1)/usr/libexec/cellglide/probe
 	$(INSTALL_BIN) ./files/usr/libexec/cellglide/report $(1)/usr/libexec/cellglide/report
+	$(INSTALL_BIN) ./files/usr/libexec/cellglide/dns $(1)/usr/libexec/cellglide/dns
 	$(INSTALL_DATA) ./files/usr/share/nftables.d/chain-pre/forward/cellglide.nft $(1)/usr/share/nftables.d/chain-pre/forward/cellglide.nft
 endef
 

@@ -3,6 +3,8 @@
 //   probe greet PORT  exit 0 when the server answers the SOCKS5 greeting
 //   probe udp PORT    exit 0 when it accepts hev's UDP-in-TCP command (0x05),
 //                     3 when it refuses it (CellGlide before 2.3), 1 otherwise
+//   probe dns PORT    PORT leads to the phone's port 8088: exit 0 when the app's own DNS
+//                     is on (the router can hand DNS to it), 4 when it's off, 1 otherwise
 'use strict';
 
 import * as socket from 'socket';
@@ -23,9 +25,32 @@ function read_exact(conn, count) {
 	return data;
 }
 
-if ((mode != 'greet' && mode != 'udp') || !port) {
-	warn('usage: probe greet|udp PORT\n');
+if ((mode != 'greet' && mode != 'udp' && mode != 'dns') || !port) {
+	warn('usage: probe greet|udp|dns PORT\n');
 	exit(2);
+}
+
+if (mode == 'dns') {
+	const conn = socket.connect('127.0.0.1', port, null, 2000);
+	if (!conn)
+		exit(1);
+	conn.send('GET /cellproxy/hello HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n');
+	let reply = '';
+	while (length(reply) < 16384) {
+		const ready = socket.poll(3000, conn);
+		if (!ready?.[0]?.[1])
+			break;
+		const chunk = conn.recv(4096);
+		if (!length(chunk))
+			break;
+		reply += chunk;
+	}
+	conn.close();
+	let hello = null;
+	try { hello = json(split(reply, '\r\n\r\n', 2)[1] ?? ''); } catch (e) { exit(1); }
+	if (type(hello?.dns?.enabled) != 'bool')
+		exit(1);
+	exit(hello.dns.enabled ? 0 : 4);
 }
 
 // iproxy accepts the TCP connection even without an iPhone, then closes it,

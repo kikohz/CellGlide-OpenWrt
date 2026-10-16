@@ -1,0 +1,216 @@
+#!/usr/bin/ucode
+// Answers the chosen devices' DNS with the iPhone's own resolver, so they follow the DNS
+// settings in the CellGlide app (encrypted DNS, cache, carrier fallback), as the Mac does.
+//   dns LISTEN_PORT PHONE_PORT
+// LISTEN_PORT takes plain DNS over UDP and TCP (nft redirects port 53 here for the chosen
+// devices). Each query goes to POST /dns-query on PHONE_PORT, iproxy's forward to the
+// phone's port 8088, which only answers loopback connections like this one.
+// Opening a USB connection through iproxy takes hundreds of milliseconds, so queries reuse
+// a few keep-alive connections, as the Mac does.
+'use strict';
+
+import * as socket from 'socket';
+
+const listen_port = +ARGV[0], phone_port = +ARGV[1];
+const TIMEOUT = 8000;     // ms a query may wait for its answer, retries included
+const ATTEMPT = 4000;     // ms one connection may take before it counts as dead
+const MAX_LINKS = 16;     // keep-alive connections to the phone (the Mac also uses 16)
+const MAX_QUEUE = 256;    // queries waiting for a free connection; more are dropped
+// The phone closes a DNS connection after 20 s idle, and the close doesn't always reach
+// this end through iproxy; a reused dead connection would just swallow queries.
+const IDLE_LIMIT = 15000;
+
+if (!listen_port || !phone_port) {
+	warn('usage: dns LISTEN_PORT PHONE_PORT\n');
+	exit(2);
+}
+
+function open_udp() {
+	const s = socket.create(socket.AF_INET6, socket.SOCK_DGRAM | socket.SOCK_NONBLOCK);
+	s?.setopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, false);
+	return s?.bind({ address: '::', port: listen_port }) ? s : null;
+}
+
+const udp = open_udp();
+const tcp = socket.listen('::', listen_port, { family: socket.AF_INET6 }, 32, true);
+if (!udp || !tcp) {
+	warn(sprintf('cellglide dns: cannot listen on port %d: %s\n', listen_port, socket.error()));
+	exit(1);
+}
+
+function now() {
+	const t = clock(true);
+	return t[0] * 1000 + int(t[1] / 1000000);
+}
+
+// A query: { query, from (UDP address) or client (TCP socket), started }.
+let queue = [];
+// Connections to the phone: { sock, buf, job (the query being answered) or null, used }.
+let links = [];
+// TCP clients still sending their query: { conn, data, started }.
+let incoming = [];
+
+function answer(job, body) {
+	if (job.from)
+		udp.send(body, 0, job.from);
+	else {
+		job.client.send(chr(length(body) >> 8, length(body) & 255) + body);
+		job.client.close();
+	}
+}
+
+function drop(job) {
+	job.client?.close();
+}
+
+function send_on(link, job) {
+	link.job = job;
+	link.buf = '';
+	link.sent = now();
+	link.sock.send(sprintf('POST /dns-query HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/dns-message\r\n' +
+		'Accept: application/dns-message\r\nContent-Length: %d\r\nConnection: keep-alive\r\n\r\n', length(job.query)) + job.query);
+}
+
+function close_link(link) {
+	link.sock.close();
+	links = filter(links, (l) => l !== link);
+	// A query lost with the connection goes back to the front of the queue while it has time.
+	const job = link.job;
+	link.job = null;
+	if (job) {
+		if (now() - job.started < TIMEOUT)
+			unshift(queue, job);
+		else
+			drop(job);
+	}
+}
+
+// Hands waiting queries to idle connections, opening new ones up to MAX_LINKS.
+function dispatch() {
+	while (length(queue)) {
+		let link = null;
+		for (let l in links)
+			if (!l.job) { link = l; break; }
+		if (!link) {
+			if (length(links) >= MAX_LINKS)
+				return;
+			const sock = socket.connect('127.0.0.1', phone_port, null, 1000);
+			if (!sock) {
+				// No phone: answer nothing, the clients will retry.
+				for (let job in queue) drop(job);
+				queue = [];
+				return;
+			}
+			link = { sock: sock, buf: '', job: null, used: now() };
+			push(links, link);
+		}
+		send_on(link, shift(queue));
+	}
+}
+
+function enqueue(query, job) {
+	if (length(query) < 12 || length(queue) >= MAX_QUEUE) {
+		drop(job);
+		return;
+	}
+	job.query = query;
+	job.started = now();
+	push(queue, job);
+}
+
+// Reads what the phone sent on `link`; delivers a complete answer.
+function read_link(link) {
+	const chunk = link.sock.recv(16384, socket.MSG_DONTWAIT);
+	if (chunk === '') {
+		close_link(link);
+		return;
+	}
+	if (chunk)
+		link.buf += chunk;
+	const end = index(link.buf, '\r\n\r\n');
+	if (end < 0)
+		return;
+	const head = lc(substr(link.buf, 0, end));
+	const size = +(match(head, /content-length: *([0-9]+)/)?.[1] ?? -1);
+	if (size < 0 || length(link.buf) < end + 4 + size)
+		return;
+	const body = substr(link.buf, end + 4, size);
+	const job = link.job;
+	link.job = null;
+	link.buf = '';
+	link.used = now();
+	if (job) {
+		if (index(substr(head, 0, 16), ' 200 ') >= 0 && size >= 12)
+			answer(job, body);
+		else
+			drop(job);
+	}
+	if (index(head, 'connection: close') >= 0)
+		close_link(link);
+}
+
+while (true) {
+	const watched = [ udp, tcp ];
+	for (let e in incoming) push(watched, e.conn);
+	for (let l in links) push(watched, l.sock);
+	const events = socket.poll(500, ...watched) ?? [];
+
+	for (let ev in events) {
+		if (!ev[1])
+			continue;
+		const s = ev[0];
+		if (s === udp) {
+			for (let i = 0; i < 32; i++) {
+				const from = {};
+				const query = udp.recv(4096, 0, from);
+				if (!length(query))
+					break;
+				enqueue(query, { from: from });
+			}
+		}
+		else if (s === tcp) {
+			const conn = tcp.accept();
+			if (conn)
+				push(incoming, { conn: conn, data: '', started: now() });
+		}
+		else {
+			for (let l in links)
+				if (l.sock === s) { read_link(l); break; }
+		}
+	}
+
+	// TCP clients: two length bytes, then the query.
+	let still = [];
+	for (let e in incoming) {
+		const chunk = e.conn.recv(4096, socket.MSG_DONTWAIT);
+		if (chunk === '') { e.conn.close(); continue; }
+		if (chunk) e.data += chunk;
+		if (length(e.data) >= 2) {
+			const size = ord(e.data, 0) << 8 | ord(e.data, 1);
+			if (length(e.data) >= size + 2) {
+				enqueue(substr(e.data, 2, size), { client: e.conn });
+				continue;
+			}
+		}
+		if (now() - e.started > TIMEOUT) { e.conn.close(); continue; }
+		push(still, e);
+	}
+	incoming = still;
+
+	// A connection that hasn't answered within ATTEMPT is likely dead: drop it and let its
+	// query try again on another. Idle connections go before the phone's limit.
+	const t = now();
+	for (let l in [ ...links ]) {
+		if (l.job && t - l.sent > ATTEMPT)
+			close_link(l);
+		else if (!l.job && t - l.used > IDLE_LIMIT)
+			close_link(l);
+	}
+	queue = filter(queue, (job) => {
+		if (t - job.started <= TIMEOUT) return true;
+		drop(job);
+		return false;
+	});
+
+	dispatch();
+}

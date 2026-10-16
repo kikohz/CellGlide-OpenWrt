@@ -50,6 +50,8 @@ const methods = {
 				device: status.device ?? '',
 				name: status.name ?? '',
 				udp: status.udp ?? 'unknown',
+				dns: status.dns ?? 'router',
+				dns4: uci.get('cellglide', 'main', 'dns') ?? '1.1.1.1',
 				exit: status.exit ?? '',
 				reason: status.reason ?? 'none',
 				now: time()

@@ -128,6 +128,26 @@ test_status_value() {
 	assert_eq "$(cg_status_value "Elok’s 手机")" "Elok’s 手机" "multibyte text kept whole"
 }
 
+test_nft_ruleset_local_dns() {
+	assert_eq "$(cg_nft_ruleset 1.1.1.1 2606:4700:4700::1111 local:5354 aa:bb:cc:dd:ee:ff)" "table inet cellglide
+delete table inet cellglide
+table inet cellglide {
+	set cg_devices {
+		type ether_addr
+		elements = { aa:bb:cc:dd:ee:ff }
+	}
+	chain cg_mark {
+		type filter hook prerouting priority mangle; policy accept;
+		iifname \"br-lan\" ether saddr @cg_devices meta mark set meta mark | 0x10000
+	}
+	chain cg_dns {
+		type nat hook prerouting priority dstnat; policy accept;
+		iifname \"br-lan\" ether saddr @cg_devices udp dport 53 redirect to :5354
+		iifname \"br-lan\" ether saddr @cg_devices tcp dport 53 redirect to :5354
+	}
+}" "DNS answered by the router's forwarder to the iPhone"
+}
+
 test_normalize_mac
 test_hev_config
 test_nft_ruleset_with_dns
@@ -138,3 +158,4 @@ test_leases
 test_nft_ruleset_all
 test_leases_all
 test_status_value
+test_nft_ruleset_local_dns

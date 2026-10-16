@@ -19,4 +19,6 @@ check 1.1.1.1 2606:4700:4700::1111 1 aa:bb:cc:dd:ee:ff
 check 9.9.9.9 2620:fe::fe 1 aa:bb:cc:dd:ee:ff 0c:29:8f:0a:99:12
 check 1.1.1.1 2606:4700:4700::1111 1 all
 check 1.1.1.1 2606:4700:4700::1111 0 all
+check 1.1.1.1 2606:4700:4700::1111 local:5354 aa:bb:cc:dd:ee:ff
+check 1.1.1.1 2606:4700:4700::1111 local:5354 all
 exit "$status"
