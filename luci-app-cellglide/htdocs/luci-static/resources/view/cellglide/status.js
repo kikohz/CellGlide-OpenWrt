@@ -79,27 +79,29 @@ function banner(s) {
 	}
 
 	return E('div', { 'class': 'alert-message ' + kind }, [
-		E('h4', {}, title),
-		E('p', {}, text),
+		E('h4', {}, [ title ]),
+		E('p', {}, [ text ]),
 		action ? E('p', {}, action) : ''
 	]);
 }
 
 function row(label, value, extra) {
 	return E('tr', { 'class': 'tr' }, [
-		E('td', { 'class': 'td left', 'width': '30%' }, label),
-		E('td', { 'class': 'td left' }, value),
+		E('td', { 'class': 'td left', 'width': '30%' }, [ label ]),
+		E('td', { 'class': 'td left' }, Array.isArray(value) ? value : [ value ]),
 		E('td', { 'class': 'td right' }, extra || '')
 	]);
 }
 
+// Every outside string goes in an array: E() and dom.append set a lone string child as
+// innerHTML, and an iPhone's name or a hostname is chosen by whoever owns the device.
 function small(text) {
-	return E('div', { 'style': 'opacity:.65;font-size:90%' }, text);
+	return E('div', { 'style': 'opacity:.65;font-size:90%' }, [ text ]);
 }
 
 function table(s) {
 	var phone = s.device
-		? [ E('strong', {}, s.name || _('iPhone')), small('UDID ' + s.device) ]
+		? [ E('strong', {}, [ s.name || _('iPhone') ]), small('UDID ' + s.device) ]
 		: _('Not connected');
 	var sharing = s.state == 'up' ? _('In use since %s').format(clock(s.since)) : _('Not in use');
 	var udp;
@@ -117,13 +119,13 @@ function table(s) {
 		var dns;
 		switch (s.dns) {
 		case 'phone': dns = _('Follows the DNS settings in CellGlide on the iPhone'); break;
-		case 'public': dns = [ _('%s through the iPhone').format(s.dns4), small(_('CellGlide DNS is off on the iPhone.')) ]; break;
+		case 'public': dns = [ E('span', {}, [ _('%s through the iPhone').format(s.dns4) ]), small(_('CellGlide DNS is off on the iPhone.')) ]; break;
 		default: dns = _('Answered by the router (over broadband)');
 		}
 		rows.push(row(_('DNS'), dns));
 	}
 	if (s.state == 'up' && s.exit)
-		rows.push(row(_('Exit IP'), [ s.exit, small(_('The address websites see from the chosen devices')) ]));
+		rows.push(row(_('Exit IP'), [ E('span', {}, [ s.exit ]), small(_('The address websites see from the chosen devices')) ]));
 	rows.push(row(_('Devices'), devicesText(s), link('devices', _('Manage devices'))));
 	rows.push(row(_('When the iPhone is unavailable'),
 		s.fallback == 'block' ? _('Block (no internet)') : _('Back to broadband'), link('settings', _('Change'))));

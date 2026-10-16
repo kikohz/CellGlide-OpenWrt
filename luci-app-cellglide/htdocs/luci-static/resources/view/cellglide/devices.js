@@ -57,7 +57,7 @@ return view.extend({
 			'click': function() {
 				var mac = normalizeMAC(macInput.value);
 				if (!mac) {
-					ui.addNotification(null, E('p', _('Not a MAC address: %s').format(macInput.value)), 'warning');
+					ui.addNotification(null, E('p', [ _('Not a MAC address: %s').format(macInput.value) ]), 'warning');
 					return;
 				}
 				var entry = byMAC[mac];
@@ -119,10 +119,10 @@ return view.extend({
 				'change': function(ev) { entry.on = ev.target.checked; } });
 			rows.push(E('tr', { 'class': 'tr' }, [
 				E('td', { 'class': 'td' }, [ entry.aliasInput,
-					entry.host && entry.alias ? E('div', { 'style': 'opacity:.65;font-size:90%' }, entry.host) : '',
+					entry.host && entry.alias ? E('div', { 'style': 'opacity:.65;font-size:90%' }, [ entry.host ]) : '',
 					entry.manual ? E('div', { 'style': 'opacity:.65;font-size:90%' }, _('Added by hand')) : '' ]),
-				E('td', { 'class': 'td' }, entry.ip || '—'),
-				E('td', { 'class': 'td' }, E('code', {}, entry.mac)),
+				E('td', { 'class': 'td' }, [ entry.ip || '—' ]),
+				E('td', { 'class': 'td' }, E('code', {}, [ entry.mac ])),
 				E('td', { 'class': 'td center' }, entry.box)
 			]));
 		});

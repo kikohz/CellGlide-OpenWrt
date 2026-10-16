@@ -19,6 +19,13 @@ const MAX_QUEUE = 256;    // queries waiting for a free connection; more are dro
 // The phone closes a DNS connection after 20 s idle, and the close doesn't always reach
 // this end through iproxy; a reused dead connection would just swallow queries.
 const IDLE_LIMIT = 15000;
+const MAX_ATTEMPTS = 3;   // connections one query may try
+const MAX_TCP = 64;       // TCP clients still sending their query
+// iproxy accepts a connection even with no phone and then closes it. A new connection that
+// closes without an answer means the phone isn't there: wait before opening another.
+const COOLDOWN = 2000;
+const SEND = socket.MSG_DONTWAIT | socket.MSG_NOSIGNAL;
+let cooldown_until = 0;
 
 if (!listen_port || !phone_port) {
 	warn('usage: dns LISTEN_PORT PHONE_PORT\n');
@@ -43,7 +50,7 @@ function now() {
 	return t[0] * 1000 + int(t[1] / 1000000);
 }
 
-// A query: { query, from (UDP address) or client (TCP socket), started }.
+// A query: { query, from (UDP address) or client (TCP socket), started, attempts }.
 let queue = [];
 // Connections to the phone: { sock, buf, job (the query being answered) or null, used }.
 let links = [];
@@ -52,9 +59,9 @@ let incoming = [];
 
 function answer(job, body) {
 	if (job.from)
-		udp.send(body, 0, job.from);
+		udp.send(body, SEND, job.from);
 	else {
-		job.client.send(chr(length(body) >> 8, length(body) & 255) + body);
+		job.client.send(chr(length(body) >> 8, length(body) & 255) + body, SEND);
 		job.client.close();
 	}
 }
@@ -67,6 +74,7 @@ function send_on(link, job) {
 	link.job = job;
 	link.buf = '';
 	link.sent = now();
+	job.attempts = (job.attempts ?? 0) + 1;
 	link.sock.send(sprintf('POST /dns-query HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/dns-message\r\n' +
 		'Accept: application/dns-message\r\nContent-Length: %d\r\nConnection: keep-alive\r\n\r\n', length(job.query)) + job.query);
 }
@@ -74,11 +82,13 @@ function send_on(link, job) {
 function close_link(link) {
 	link.sock.close();
 	links = filter(links, (l) => l !== link);
+	if (!link.answered)
+		cooldown_until = now() + COOLDOWN;
 	// A query lost with the connection goes back to the front of the queue while it has time.
 	const job = link.job;
 	link.job = null;
 	if (job) {
-		if (now() - job.started < TIMEOUT)
+		if (now() - job.started < TIMEOUT && job.attempts < MAX_ATTEMPTS)
 			unshift(queue, job);
 		else
 			drop(job);
@@ -94,6 +104,12 @@ function dispatch() {
 		if (!link) {
 			if (length(links) >= MAX_LINKS)
 				return;
+			if (now() < cooldown_until) {
+				// The phone isn't answering: let the clients retry later instead.
+				for (let job in queue) drop(job);
+				queue = [];
+				return;
+			}
 			const sock = socket.connect('127.0.0.1', phone_port, null, 1000);
 			if (!sock) {
 				// No phone: answer nothing, the clients will retry.
@@ -101,7 +117,7 @@ function dispatch() {
 				queue = [];
 				return;
 			}
-			link = { sock: sock, buf: '', job: null, used: now() };
+			link = { sock: sock, buf: '', job: null, used: now(), answered: 0 };
 			push(links, link);
 		}
 		send_on(link, shift(queue));
@@ -139,6 +155,7 @@ function read_link(link) {
 	link.job = null;
 	link.buf = '';
 	link.used = now();
+	link.answered++;
 	if (job) {
 		if (index(substr(head, 0, 16), ' 200 ') >= 0 && size >= 12)
 			answer(job, body);
@@ -170,7 +187,9 @@ while (true) {
 		}
 		else if (s === tcp) {
 			const conn = tcp.accept();
-			if (conn)
+			if (conn && length(incoming) >= MAX_TCP)
+				conn.close();
+			else if (conn)
 				push(incoming, { conn: conn, data: '', started: now() });
 		}
 		else {

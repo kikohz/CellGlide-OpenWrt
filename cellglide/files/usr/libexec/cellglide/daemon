@@ -22,7 +22,6 @@ EXIT=""
 # Who answers the chosen devices' DNS: phone (the app's resolver, through the forwarder),
 # public (the dns/dns6 servers through the iPhone) or router (dnsmasq, over broadband).
 DNS=router
-CHECKS=0
 ERROR=""
 # What the web interface translates: none, no-iphone, not-paired, not-sharing or tunnel.
 REASON=none
@@ -56,9 +55,10 @@ write_status() {
 		mv "$RUN/status.tmp" "$RUN/status"
 }
 
-# The iPhone's own name (Settings › General › About), looked up once per phone.
+# The iPhone's own name (Settings › General › About), looked up once per phone. An
+# unpaired phone won't tell, so it is asked again each round until it does.
 phone_name() {
-	[ "$DEVICE" = "$NAMED" ] && return
+	[ "$DEVICE" = "$NAMED" ] && [ -n "$NAME" ] && return
 	NAMED=$DEVICE
 	NAME=""
 	[ -n "$DEVICE" ] && NAME=$(cg_status_value "$(ideviceinfo -u "$DEVICE" -k DeviceName 2>/dev/null | head -n 1)")
@@ -77,7 +77,7 @@ lan_routes() {
 
 load_nft() {
 	# shellcheck disable=SC2086 # one argument per MAC
-	cg_nft_ruleset "$DNS4" "$DNS6" "$1" $MACS | cg_nft_apply 2>"$RUN/nft.err" ||
+	cg_nft_ruleset "$DNS4" "$DNS6" "$1" "$DNS_PORT" $MACS | cg_nft_apply 2>"$RUN/nft.err" ||
 		log "nft rules failed to load: $(head -n 3 "$RUN/nft.err" | tr '\n' ' ')"
 }
 
@@ -192,6 +192,11 @@ write_status
 
 while :; do
 	DEVICE=$(idevice_id -l 2>/dev/null | head -n 1)
+	# A UDID comes from the USB serial string; anything that isn't one counts as no phone,
+	# so it never reaches the status file (sourced by the command line) or a command.
+	case "$DEVICE" in
+	*[!0-9A-Fa-f-]*) DEVICE="" ;;
+	esac
 	phone_name
 	if [ -z "$DEVICE" ]; then
 		probe=1
@@ -230,12 +235,8 @@ while :; do
 		STATE=down
 		SINCE=$(date +%s)
 	elif [ "$STATE" = up ]; then
-		# The app's DNS can be switched on or off while sharing; look again about once a minute.
-		CHECKS=$((CHECKS + 1))
-		if [ "$CHECKS" -ge 12 ]; then
-			CHECKS=0
-			choose_dns keep
-		fi
+		# The app's DNS can be switched on or off while sharing; one local request a round.
+		choose_dns keep
 	fi
 	write_status
 	# Sleep in the background so SIGTERM is handled right away.

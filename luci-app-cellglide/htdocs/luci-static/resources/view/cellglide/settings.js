@@ -77,6 +77,7 @@ return view.extend({
 				return _('No iPhone connected');
 			if (!paired.paired)
 				return _('Not paired');
+			// Shown as text: DummyValue only renders HTML with rawhtml set.
 			return status.name ? _('Paired · %s').format(status.name) : _('Paired');
 		};
 
@@ -92,7 +93,7 @@ return view.extend({
 				if (result.ok)
 					ui.addNotification(null, E('p', _('Paired.')), 'info');
 				else
-					ui.addNotification(null, E('p', _('Pairing didn\'t finish: %s').format(result.output || _('no reply'))), 'warning');
+					ui.addNotification(null, E('p', [ _('Pairing didn\'t finish: %s').format(result.output || _('no reply')) ]), 'warning');
 			});
 		};
 

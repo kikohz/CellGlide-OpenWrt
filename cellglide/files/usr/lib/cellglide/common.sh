@@ -42,12 +42,13 @@ EOF
 # An nft script that replaces table inet cellglide. Arguments: IPv4 DNS, IPv6 DNS, what to
 # do with the chosen devices' DNS while the iPhone is usable (0 leave it to the router,
 # 1 send it to the IPv4/IPv6 DNS through the iPhone, local:PORT hand it to the router's
-# forwarder to the iPhone's resolver on PORT), then their MACs, or the single word "all"
-# for every device on the LAN.
+# forwarder to the iPhone's resolver on PORT), the forwarder's port (it then accepts only
+# what nft redirected to it; empty for none), then their MACs, or the single word "all" for
+# every device on the LAN.
 # Set and chain names carry a cg_ prefix: plain words like devices, mark and dns are nft keywords.
 cg_nft_ruleset() {
-	local dns4="$1" dns6="$2" redirect="$3" elements="" match="ether saddr @cg_devices " mac proto
-	shift 3
+	local dns4="$1" dns6="$2" redirect="$3" guard="$4" elements="" match="ether saddr @cg_devices " mac proto
+	shift 4
 	for mac in "$@"; do
 		if [ "$mac" = all ]; then
 			match=""
@@ -64,6 +65,11 @@ cg_nft_ruleset() {
 	printf '\t}\n'
 	printf '\tchain cg_mark {\n\t\ttype filter hook prerouting priority mangle; policy accept;\n'
 	printf '\t\tiifname "%s" %smeta mark set meta mark | %s\n\t}\n' "$CG_LAN" "$match" "$CG_MARK"
+	if [ -n "$guard" ]; then
+		printf '\tchain cg_input {\n\t\ttype filter hook input priority filter - 1; policy accept;\n'
+		printf '\t\tmeta l4proto { tcp, udp } th dport %s ct status dnat accept\n' "$guard"
+		printf '\t\tmeta l4proto { tcp, udp } th dport %s drop\n\t}\n' "$guard"
+	fi
 	case "$redirect" in
 	local:*)
 		printf '\tchain cg_dns {\n\t\ttype nat hook prerouting priority dstnat; policy accept;\n'

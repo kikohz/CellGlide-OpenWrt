@@ -30,7 +30,7 @@ misc:
 }
 
 test_nft_ruleset_with_dns() {
-	assert_eq "$(cg_nft_ruleset 1.1.1.1 2606:4700:4700::1111 1 aa:bb:cc:dd:ee:ff 0c:29:8f:0a:99:12)" "table inet cellglide
+	assert_eq "$(cg_nft_ruleset 1.1.1.1 2606:4700:4700::1111 1 "" aa:bb:cc:dd:ee:ff 0c:29:8f:0a:99:12)" "table inet cellglide
 delete table inet cellglide
 table inet cellglide {
 	set cg_devices {
@@ -52,7 +52,7 @@ table inet cellglide {
 }
 
 test_nft_ruleset_empty() {
-	assert_eq "$(cg_nft_ruleset 1.1.1.1 2606:4700:4700::1111 0)" "table inet cellglide
+	assert_eq "$(cg_nft_ruleset 1.1.1.1 2606:4700:4700::1111 0 "")" "table inet cellglide
 delete table inet cellglide
 table inet cellglide {
 	set cg_devices {
@@ -93,7 +93,7 @@ test_leases() {
 }
 
 test_nft_ruleset_all() {
-	assert_eq "$(cg_nft_ruleset 1.1.1.1 2606:4700:4700::1111 1 all)" "table inet cellglide
+	assert_eq "$(cg_nft_ruleset 1.1.1.1 2606:4700:4700::1111 1 "" all)" "table inet cellglide
 delete table inet cellglide
 table inet cellglide {
 	set cg_devices {
@@ -129,7 +129,7 @@ test_status_value() {
 }
 
 test_nft_ruleset_local_dns() {
-	assert_eq "$(cg_nft_ruleset 1.1.1.1 2606:4700:4700::1111 local:5354 aa:bb:cc:dd:ee:ff)" "table inet cellglide
+	assert_eq "$(cg_nft_ruleset 1.1.1.1 2606:4700:4700::1111 local:5354 "" aa:bb:cc:dd:ee:ff)" "table inet cellglide
 delete table inet cellglide
 table inet cellglide {
 	set cg_devices {
@@ -148,6 +148,25 @@ table inet cellglide {
 }" "DNS answered by the router's forwarder to the iPhone"
 }
 
+test_nft_ruleset_guard() {
+	assert_eq "$(cg_nft_ruleset 1.1.1.1 2606:4700:4700::1111 0 5354)" "table inet cellglide
+delete table inet cellglide
+table inet cellglide {
+	set cg_devices {
+		type ether_addr
+	}
+	chain cg_mark {
+		type filter hook prerouting priority mangle; policy accept;
+		iifname \"br-lan\" ether saddr @cg_devices meta mark set meta mark | 0x10000
+	}
+	chain cg_input {
+		type filter hook input priority filter - 1; policy accept;
+		meta l4proto { tcp, udp } th dport 5354 ct status dnat accept
+		meta l4proto { tcp, udp } th dport 5354 drop
+	}
+}" "forwarder port only takes redirected DNS"
+}
+
 test_normalize_mac
 test_hev_config
 test_nft_ruleset_with_dns
@@ -159,3 +178,4 @@ test_nft_ruleset_all
 test_leases_all
 test_status_value
 test_nft_ruleset_local_dns
+test_nft_ruleset_guard
