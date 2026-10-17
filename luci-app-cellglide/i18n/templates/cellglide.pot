@@ -217,8 +217,10 @@ msgstr ""
 msgid "Every device on the LAN goes online through the iPhone, since %s."
 msgstr ""
 
-msgid "%s go online through the iPhone, since %s."
-msgstr ""
+msgid "%d chosen device goes online through the iPhone, since %s."
+msgid_plural "%d chosen devices go online through the iPhone, since %s."
+msgstr[0] ""
+msgstr[1] ""
 
 msgid "Plug the iPhone into the router's USB port, open CellGlide and tap Start sharing."
 msgstr ""

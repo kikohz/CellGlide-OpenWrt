@@ -49,7 +49,8 @@ function banner(s) {
 		title = _('Using the iPhone\'s connection');
 		text = s.all
 			? _('Every device on the LAN goes online through the iPhone, since %s.').format(clock(s.since))
-			: _('%s go online through the iPhone, since %s.').format(devicesText(s), clock(s.since));
+			: N_(s.devices, '%d chosen device goes online through the iPhone, since %s.',
+				'%d chosen devices go online through the iPhone, since %s.').format(s.devices, clock(s.since));
 	}
 	else {
 		kind = 'warning';

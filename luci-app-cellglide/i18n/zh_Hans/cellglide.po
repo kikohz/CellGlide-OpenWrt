@@ -220,8 +220,9 @@ msgstr "正在使用手机网络"
 msgid "Every device on the LAN goes online through the iPhone, since %s."
 msgstr "局域网所有设备经 iPhone 上网，从 %s 开始。"
 
-msgid "%s go online through the iPhone, since %s."
-msgstr "%s经 iPhone 上网，从 %s 开始。"
+msgid "%d chosen device goes online through the iPhone, since %s."
+msgid_plural "%d chosen devices go online through the iPhone, since %s."
+msgstr[0] "%d 台被选设备经 iPhone 上网，从 %s 开始。"
 
 msgid "Plug the iPhone into the router's USB port, open CellGlide and tap Start sharing."
 msgstr "把 iPhone 插到路由器的 USB 口，打开 CellGlide，点“开始共享”。"
