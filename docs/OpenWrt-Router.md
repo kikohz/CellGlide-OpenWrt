@@ -1,121 +1,123 @@
-# 通过 OpenWrt 路由器使用 CellGlide
+# Using CellGlide through an OpenWrt router
 
-## 这是什么
+English | [简体中文](OpenWrt-Router.zh-CN.md)
 
-路由器后面选定的设备，经 USB 线连着的 iPhone 上网。路由器上装一个 `cellglide` 软件包，它会管好配对、转发和路由规则。手机拔掉或停止共享后，这些设备自动回到宽带。
+## What this is
 
-没被选中的设备不受影响，路由器自己的流量也不走手机。
+Chosen devices behind the router go online through an iPhone connected to the router with a USB cable. The `cellglide` package on the router takes care of pairing, forwarding and the routing rules. When the iPhone is unplugged or stops sharing, those devices go back to the broadband line on their own.
 
-## 需要什么
+Devices you haven't chosen are not affected, and the router's own traffic never goes through the iPhone.
 
-- OpenWrt 24.10 或 25.12。23.05 的软件源里没有 `hev-socks5-tunnel`，不支持。
-- iOS 版 CellGlide 2.3 或更新版本。旧版 App 上 TCP 能用，UDP 不通；DNS 改由路由器自己解析（走宽带），`cellglide status` 会提示。
-- 一根 USB 线，把 iPhone 接到路由器的 USB 口。
-- 使用时 App 要在前台，并且已经开始共享。
+## What you need
 
-## 安装
+- OpenWrt 24.10 or 25.12. 23.05 is not supported: its package feeds don't have `hev-socks5-tunnel`.
+- CellGlide 2.3 or later for iOS. With an older app TCP works but UDP doesn't, and DNS is answered by the router itself (over broadband); `cellglide status` says so.
+- A USB cable from the iPhone to the router's USB port.
+- While in use, CellGlide has to be on screen on the iPhone and sharing.
 
-先到 [GitHub Releases](https://github.com/kikohz/CellGlide-OpenWrt/releases) 页面（`v0.2.0`）下载安装包：`cellglide` 是后台服务，`luci-app-cellglide` 是路由器后台里的网页界面（不需要网页界面的话可以只装第一个）。传到路由器的 `/tmp`，再安装。
+## Install
 
-OpenWrt 25.12（`apk`）：
+Download the packages from [GitHub Releases](https://github.com/kikohz/CellGlide-OpenWrt/releases) (`v0.2.0`): `cellglide` is the service, and `luci-app-cellglide` is the web interface in the router's admin pages (you can install only the first if you don't want the web interface). Copy them to `/tmp` on the router, then install.
+
+OpenWrt 25.12 (`apk`):
 
 ```sh
 apk update
 apk add --allow-untrusted ./cellglide-0.2.0-r2.apk ./luci-app-cellglide-0.2.0-r3.apk
 ```
 
-OpenWrt 24.10（`opkg`）：
+OpenWrt 24.10 (`opkg`):
 
 ```sh
 opkg update
 opkg install ./cellglide_0.2.0-r2_all.ipk ./luci-app-cellglide_0.2.0-r3_all.ipk
 ```
 
-安装时会顺带从官方源装好依赖：`usbmuxd`、`libusbmuxd-utils`、`libimobiledevice-utils`、`hev-socks5-tunnel`、`kmod-tun`、`ucode`、`ucode-mod-socket`。所以安装前要先 `update`，路由器也要能上网。
+The dependencies come from the official feeds during install: `usbmuxd`, `libusbmuxd-utils`, `libimobiledevice-utils`, `hev-socks5-tunnel`, `kmod-tun`, `ucode`, `ucode-mod-socket`. That's why you run `update` first, and why the router needs to be online.
 
-安装包没有签名，所以 `apk` 要加 `--allow-untrusted`。
+The packages aren't signed, so `apk` needs `--allow-untrusted`. Each release comes with a `SHA256SUMS` file to check the downloads against.
 
-网页界面跟随路由器后台的语言：后台是英文就显示英文，后台装了中文界面并选了中文就显示中文。中文翻译已经包含在 `luci-app-cellglide` 里，不用另外装翻译包，安装时也不会改动后台的语言设置。
+The web interface follows the language of the router's admin pages: English if they're in English, Chinese if a Chinese LuCI language is installed and chosen. The Chinese translation is built into `luci-app-cellglide`, so there's no separate translation package, and installing doesn't change the admin pages' language setting.
 
-装完后服务会自动启用并启动，可以用 `cellglide status` 看一下运行状态。
+After installing, the service is enabled and started. Check it with `cellglide status`.
 
-## 网页界面
+## Web interface
 
-装了 `luci-app-cellglide` 的话，打开路由器后台，在“服务 › CellGlide”里有三个页面：
+With `luci-app-cellglide` installed, the router's admin pages have three pages under Services › CellGlide:
 
-- **状态**：手机是否连上、是否在用、UDP 是否正常、出口 IP；不可用时写明原因和该怎么做（没插手机、没配对、没在共享）。
-- **设备**：路由器上的设备列表（来自 DHCP 租约），每台一个“走手机”开关，可以写备注；也可以一键让所有设备走手机，或者手动添加不在列表里的设备。改完点“保存并应用”。
-- **设置**：启用开关、手机不可用时回到宽带还是断网、DNS、配对按钮，以及高级里的端口和“在 iPhone 上显示的名字”。
+- **Status**: whether the iPhone is connected and in use, whether UDP works, and the exit IP. When the iPhone can't be used, it says why and what to do (not plugged in, not paired, not sharing).
+- **Devices**: the devices on the router (from the DHCP leases), each with a "through iPhone" switch and an optional name. You can also send every device through the iPhone at once, or add a device that isn't in the list by hand. Click "Save & Apply" when done. To remove a device you added by hand, clear its name, untick it and save.
+- **Settings**: the on/off switch, whether chosen devices go back to broadband or are blocked when the iPhone is unavailable, DNS, the pairing button, and under Advanced the ports and the name shown on the iPhone.
 
-后面讲的命令行操作，在网页里都能做。
+Everything the commands below do can also be done in the web interface.
 
-路由器会像 Mac 一样把自己的名字报给手机，iPhone 首页“已连接的设备”里会显示它（默认是路由器的主机名）。
+Like a Mac, the router reports its name to the iPhone, so it shows up under connected devices on CellGlide's home screen (the router's hostname by default).
 
-## 配对
+## Pairing
 
-iPhone 接到路由器，解锁屏幕，运行：
+Plug the iPhone into the router, unlock it, and run:
 
 ```sh
 cellglide pair
 ```
 
-手机上弹出“要信任此电脑吗”，点“信任”。
+When the iPhone asks "Trust This Computer?", tap Trust.
 
-## 选择设备
+## Choosing devices
 
-先看看路由器上有哪些设备，找到要走手机的那台的 MAC：
+First list the devices on the router to find the MAC address of the one that should use the iPhone:
 
 ```sh
 cellglide list
 ```
 
-添加设备，名字可以不写：
+Add the device; the name is optional:
 
 ```sh
-cellglide add AA:BB:CC:DD:EE:FF 我的Mac
+cellglide add AA:BB:CC:DD:EE:FF "My Mac"
 ```
 
-不想再走手机时：
+To send it back to broadband:
 
 ```sh
 cellglide remove AA:BB:CC:DD:EE:FF
 ```
 
-也可以让局域网里所有设备都走手机：
+You can also send every device on the LAN through the iPhone:
 
 ```sh
 cellglide add all
 ```
 
-改回只让单独添加的设备走手机：
+To go back to only the devices you added one by one:
 
 ```sh
 cellglide remove all
 ```
 
-所有设备都走手机时，全家的系统更新、云同步、电视视频都会用手机流量，用量会涨得很快。路由器自己的流量（插件、软件更新）仍然走宽带；局域网内互相访问不受影响。
+With every device on the iPhone, the whole household's system updates, cloud sync and TV streaming use the phone's data, and usage climbs fast. The router's own traffic (packages, updates) still uses broadband, and devices on the LAN still reach each other as before.
 
-## 开始使用
+## Getting started
 
-在手机上打开 CellGlide，开始共享。然后在路由器上查看：
+Open CellGlide on the iPhone and start sharing. Then check on the router:
 
 ```sh
 cellglide status
 ```
 
-正常时会显示 `in use`，UDP 一项显示 `works`。在选中的设备上运行 `curl -4 https://speed.cloudflare.com/cdn-cgi/trace`，`ip=` 应该是手机的出口 IP。
+When everything works it shows `in use`, and UDP shows `works`. On a chosen device, run `curl -4 https://speed.cloudflare.com/cdn-cgi/trace`: `ip=` should be the iPhone's exit address.
 
 ## DNS
 
-手机在用时，选中设备的 DNS 交给 iPhone 上的 CellGlide 解析，跟随 App 里的 DNS 设置（加密 DNS、缓存、加密 DNS 连不上时改用运营商 DNS），和 Mac 一样。这条路走 TCP，所以旧版 App 也能用。
+While the iPhone is in use, the chosen devices' DNS is answered by CellGlide on the iPhone and follows the app's DNS settings (encrypted DNS, caching, falling back to the carrier's DNS when encrypted DNS can't be reached), just as on a Mac. This path runs over TCP, so it works with older versions of the app too.
 
-App 里关闭了 CellGlide DNS 时，改用备用 DNS（默认 1.1.1.1）经手机发出；如果 App 还不支持 UDP，就留给路由器自己解析。`cellglide status` 和网页的状态页会显示当前是哪一种。
+When CellGlide DNS is turned off in the app, a fallback DNS server (1.1.1.1 by default) is used through the iPhone instead. If the app doesn't support UDP yet, DNS is left to the router. `cellglide status` and the Status page show which one is in use.
 
-## 手机不可用时
+## When the iPhone is unavailable
 
-拔掉手机，或者在 App 里停止共享，大约 10 秒后，选中的设备会自动回到宽带。重新插上并开始共享，10 秒内会切回手机。
+Unplug the iPhone, or stop sharing in the app, and about 10 seconds later the chosen devices are back on broadband. Plug it back in and start sharing, and within 10 seconds they use the iPhone again.
 
-如果你宁可断网也不想走宽带，改成 `block`：
+If you'd rather have no internet than use broadband, switch to `block`:
 
 ```sh
 uci set cellglide.main.fallback=block
@@ -123,101 +125,101 @@ uci commit cellglide
 /etc/init.d/cellglide reload
 ```
 
-改回宽带就把 `block` 换成 `broadband`。
+To go back, replace `block` with `broadband`.
 
-## 配置项
+## Configuration
 
-配置文件是 `/etc/config/cellglide`，修改后执行 `/etc/init.d/cellglide reload`。
+The configuration file is `/etc/config/cellglide`. Run `/etc/init.d/cellglide reload` after changing it.
 
-| 选项 | 默认值 | 说明 |
+| Option | Default | Meaning |
 | --- | --- | --- |
-| `enabled` | `1` | 设为 `0` 时服务什么都不做 |
-| `socks_port` | `9876` | 手机上 CellGlide 的 SOCKS5 端口 |
-| `local_port` | `19876` | 转发到路由器本机的端口 |
-| `fallback` | `broadband` | 手机不可用时的行为：`broadband` 回到宽带，`block` 断网 |
-| `dns` | `1.1.1.1` | 备用 DNS：iPhone 上的 CellGlide 关闭了 DNS 时，选中设备的 IPv4 DNS 经手机发到这里（需要 UDP，也就是 App 2.3 或更新版本） |
-| `dns6` | `2606:4700:4700::1111` | 同上，IPv6 |
-| `dns_port` | `5354` | 路由器接收选中设备 DNS、再交给 iPhone 的端口 |
-| `local_watch_port` | `19088` | 转发到手机 8088 端口的本机端口（DNS 和向手机报名字都用它） |
-| `name` | 不设置 | 在 iPhone 上显示的名字，不设时用路由器的主机名 |
-| `all` | 不设置 | 设为 `1` 时局域网所有设备都走手机，等同于 `cellglide add all` |
+| `enabled` | `1` | With `0` the service does nothing |
+| `socks_port` | `9876` | CellGlide's SOCKS5 port on the iPhone |
+| `local_port` | `19876` | The port on the router it's forwarded to |
+| `fallback` | `broadband` | What happens when the iPhone is unavailable: `broadband` goes back to broadband, `block` cuts the chosen devices off |
+| `dns` | `1.1.1.1` | Fallback DNS: when CellGlide DNS is off on the iPhone, the chosen devices' IPv4 DNS goes here through the iPhone (needs UDP, so app 2.3 or later) |
+| `dns6` | `2606:4700:4700::1111` | The same for IPv6 |
+| `dns_port` | `5354` | The port where the router takes the chosen devices' DNS before handing it to the iPhone |
+| `local_watch_port` | `19088` | The local port forwarded to the iPhone's port 8088 (used for DNS and for reporting the router's name) |
+| `name` | unset | The name shown on the iPhone; the router's hostname when unset |
+| `all` | unset | With `1` every device on the LAN uses the iPhone, the same as `cellglide add all` |
 
-每台选中的设备是一个 `device` 段，有 `mac` 和 `name` 两项，一般用 `cellglide add` 来加，不用手改。在网页上给没选中的设备起的名字存在 `alias` 段里（同样是 `mac` 和 `name`），只用来显示，不影响哪台设备走手机。
+Each chosen device is a `device` section with `mac` and `name`. You normally add them with `cellglide add` rather than by hand. Names given in the web interface to devices that aren't chosen are kept in `alias` sections (also `mac` and `name`); they're only for display and don't affect which devices use the iPhone.
 
-## 已知限制
+## Known limitations
 
-- 手机锁屏或 App 退到后台会停止共享，大约 10 秒后回到宽带。
-- 被选中的设备无法解析 `xxx.lan`，用 IP 访问不受影响，`.local` 也不受影响。
-- 外网连不进来：不能做端口转发、DDNS。
-- 路由器自己的流量不走手机。
-- 一次只支持一台 iPhone。
-- 和其他代理插件（sing-box、OpenClash 等）同时使用时，把这些设备从那些插件里排除。
+- Locking the iPhone or sending the app to the background stops sharing; about 10 seconds later the devices are back on broadband.
+- Chosen devices can't resolve `xxx.lan` names. IP addresses still work, and so do `.local` names.
+- Nothing can reach the devices from the internet: no port forwarding, no DDNS.
+- The router's own traffic doesn't use the iPhone.
+- One iPhone at a time.
+- If you also run other proxy packages (sing-box, OpenClash and so on), exclude these devices from them.
 
-## 卸载
+## Uninstall
 
 ```sh
 apk del luci-app-cellglide cellglide
 ```
 
-24.10 用：
+On 24.10:
 
 ```sh
 opkg remove luci-app-cellglide cellglide
 ```
 
-卸载后所有规则都会撤掉。`/etc/config/cellglide` 是配置文件，可能会保留，这是正常的。依赖包也不会被删。
+Uninstalling removes every rule. `/etc/config/cellglide` is a configuration file and may be kept, which is normal. The dependencies are not removed.
 
 ---
 
-# 附录：手动配置（不装软件包）
+## Appendix: manual setup (without the package)
 
-下面是不装软件包、完全手动配置的做法，保留作参考。手动配置和软件包不要同时使用。
+This is how to set it up entirely by hand, without the package, kept for reference. Don't use the manual setup and the package at the same time.
 
-让路由器后面的一台（或几台）设备，经 USB 线连着的 iPhone 上网。路由器上跑 `hev-socks5-tunnel`，把设备的流量转成 SOCKS5，通过 USB 转发到 iPhone 上的 CellGlide。
+One (or a few) devices behind the router go online through an iPhone connected with a USB cable. The router runs `hev-socks5-tunnel`, which turns the device's traffic into SOCKS5 and sends it over USB to CellGlide on the iPhone.
 
-- 适用环境：OpenWrt 24.10 及以上（23.05 的软件源里没有 `hev-socks5-tunnel`）。24.10 用 `opkg`，25.12 用 `apk`。已在 Linksys MX4300、OpenWrt 25.12.5 上验证过。
-- 实测：TCP 正常，在测试的 Mac 上约 150 Mbps。
-- UDP（DNS、QUIC、游戏、语音等）需要 iOS 版 CellGlide 2.3 或更新版本，hev 配置里要写 `udp: 'tcp'`。旧版 App 上 TCP 照常能用，UDP 不通。
+- Works on: OpenWrt 24.10 and later (23.05's feeds don't have `hev-socks5-tunnel`). 24.10 uses `opkg`, 25.12 uses `apk`. Tested on a Linksys MX4300 with OpenWrt 25.12.5.
+- Measured: TCP works, about 150 Mbps on the test Mac.
+- UDP (DNS, QUIC, games, voice and so on) needs CellGlide 2.3 or later for iOS, with `udp: 'tcp'` in the hev configuration. With an older app TCP works as usual but UDP doesn't.
 
-### 安装
+### Install
 
-OpenWrt 25.12（`apk`）：
+OpenWrt 25.12 (`apk`):
 
 ```sh
 apk update
 apk add usbmuxd libimobiledevice-utils libusbmuxd-utils hev-socks5-tunnel curl
 ```
 
-OpenWrt 24.10（`opkg`）：
+OpenWrt 24.10 (`opkg`):
 
 ```sh
 opkg update
 opkg install usbmuxd libimobiledevice-utils libusbmuxd-utils hev-socks5-tunnel curl
 ```
 
-`curl` 只是用来测试，可以不装。`hev-socks5-tunnel` 软件包自带一个开机服务，默认是关着的，本文手动运行 hev，不用那个服务，也不要去改它的设置。
+`curl` is only for testing and can be left out. The `hev-socks5-tunnel` package comes with a boot service that's off by default. This guide runs hev by hand and doesn't use that service; leave its settings alone.
 
-### 配对
+### Pairing
 
-iPhone 用 USB 线接到路由器，解锁屏幕，运行：
+Connect the iPhone to the router with a USB cable, unlock it, and run:
 
 ```sh
 idevicepair pair
 ```
 
-手机上弹出“要信任此电脑吗”，点“信任”。
+When the iPhone asks "Trust This Computer?", tap Trust.
 
-### 转发手机的代理端口
+### Forwarding the iPhone's proxy port
 
-CellGlide 在手机上的 SOCKS5 端口是 9876。用 `iproxy` 把它转到路由器本机的 19876：
+CellGlide's SOCKS5 port on the iPhone is 9876. `iproxy` forwards it to port 19876 on the router:
 
 ```sh
 iproxy -l 19876:9876 &
 ```
 
-### 写 hev 配置
+### The hev configuration
 
-保存为 `/etc/cellglide-hev.yml`：
+Save as `/etc/cellglide-hev.yml`:
 
 ```yaml
 tunnel:
@@ -235,7 +237,7 @@ misc:
   udp-read-write-timeout: 30000
 ```
 
-启动并拉起网卡：
+Start it and bring the interface up:
 
 ```sh
 hev-socks5-tunnel /etc/cellglide-hev.yml &
@@ -243,72 +245,72 @@ sleep 1
 ip link set cgtun up
 ```
 
-### 只让一台设备走手机
+### Sending only one device through the iPhone
 
-先运行 `ip rule` 看看已有的规则。如果你装了 mwan3 或 pbr，它们也会用策略路由，下面的表号 200 和优先级 100 要换成没被占用的数字（撤销时也用同一组数字）。
+Run `ip rule` first to see the existing rules. If you use mwan3 or pbr, they use policy routing too; pick a table number and priority that aren't taken instead of 200 and 100 below (and use the same numbers when undoing).
 
-把下面的 `<设备IP>` 换成要走手机的那台设备的局域网地址，`<局域网段>` 换成你的局域网网段（例如 `192.168.1.0/24`）。局域网段那条路由不能少，否则这台设备访问路由器和局域网里的其他设备会不通。
+Replace `<device IP>` with the LAN address of the device that should use the iPhone, and `<LAN prefix>` with your LAN (for example `192.168.1.0/24`). The LAN route is required: without it the device can't reach the router or other devices on the LAN.
 
 ```sh
 ip route add default dev cgtun table 200
-ip route add <局域网段> dev br-lan table 200
-ip rule add from <设备IP> iif br-lan lookup 200 priority 100
+ip route add <LAN prefix> dev br-lan table 200
+ip rule add from <device IP> iif br-lan lookup 200 priority 100
 nft insert rule inet fw4 forward iifname "br-lan" oifname "cgtun" accept comment "cellglide"
 ```
 
-其他设备不受影响，仍然走原来的上网线路。
+Other devices are not affected and keep using their usual connection.
 
-### DNS 的注意事项
+### A note on DNS
 
-设备的 DNS 请求发给路由器自己的 dnsmasq，这是发往路由器本机的流量，不会进上面的 200 表。所以 DNS 查询是从宽带出去的，不经过手机。后果是：宽带断了，这台设备就解析不了域名，即使手机还连着。
+The device sends its DNS queries to dnsmasq on the router. That's traffic to the router itself, so it never enters table 200, and DNS goes out over broadband rather than the iPhone. As a result, when broadband is down the device can't resolve names even though the iPhone is connected.
 
-想让 DNS 也走手机，在那台设备上手动把 DNS 改成公共解析器（例如 1.1.1.1）。这样 DNS 请求会通过隧道走手机，其中的 UDP 部分需要 2.3 或更新版本的 App。让 App 在手机端做 DNS 解析是以后的事。
+To send DNS through the iPhone as well, set the device's DNS by hand to a public resolver (for example 1.1.1.1). DNS then goes through the tunnel to the iPhone; its UDP part needs app 2.3 or later. Having the app resolve DNS on the iPhone was left for later (the package does this).
 
-### 验证
+### Checking
 
-路由器自己发出的请求走的是主路由表（宽带），所以直接在路由器上 `curl` 看到的是家里宽带的 IP，不能用来验证。
+Requests the router makes itself use the main routing table (broadband), so `curl` on the router shows your broadband address and proves nothing.
 
-最直接的办法是在那台设备上运行：
+The most direct check is to run this on the device:
 
 ```sh
 curl -4 https://speed.cloudflare.com/cdn-cgi/trace
 ```
 
-输出里的 `ip=` 应该是手机的出口 IP，而不是宽带的 IP。
+`ip=` in the output should be the iPhone's exit address, not your broadband address.
 
-只想在路由器上测，必须指定网卡：
+To test from the router, you have to name the interface:
 
 ```sh
 curl --interface cgtun -4 https://speed.cloudflare.com/cdn-cgi/trace
 ```
 
-测 UDP（需要 App 2.3 或更新版本）：在设备上把 DNS 手动设成 1.1.1.1（见上一节），然后访问任意网站，或者运行 `nslookup example.com 1.1.1.1`。`dig` 路由器默认没有，要用的话装 `bind-dig`。注意同样要在设备上测，在路由器上直接 `nslookup` 走的是宽带。
+To test UDP (needs app 2.3 or later): set the device's DNS to 1.1.1.1 by hand (see the previous section), then open any website or run `nslookup example.com 1.1.1.1`. The router doesn't have `dig` by default; install `bind-dig` if you want it. Again, test on the device: `nslookup` on the router goes over broadband.
 
-出问题时看 `/tmp/cellglide-hev.log`。
+If something goes wrong, look at `/tmp/cellglide-hev.log`.
 
-### 撤销
+### Undoing it
 
-按相反的顺序删掉上面加的东西：
+Remove what you added, in reverse order:
 
 ```sh
 nft -a list chain inet fw4 forward
 ```
 
-找到带 `comment "cellglide"` 的那一行，记下末尾的 `# handle N`，然后：
+Find the line with `comment "cellglide"`, note the `# handle N` at its end, then:
 
 ```sh
 nft delete rule inet fw4 forward handle N
-ip rule del from <设备IP> iif br-lan lookup 200 priority 100
-ip route del <局域网段> dev br-lan table 200
+ip rule del from <device IP> iif br-lan lookup 200 priority 100
+ip route del <LAN prefix> dev br-lan table 200
 ip route del default dev cgtun table 200
 killall hev-socks5-tunnel iproxy
 ```
 
-### 限制
+### Limitations
 
-- iPhone 上的 CellGlide 要一直开在前台，并且接着电源。
-- 外网无法连入：不能做端口转发、DDNS。
-- IPv6 暂时不走手机。
-- 重载防火墙（例如在 LuCI 里保存防火墙设置）会让 nft 规则消失，但 `ip rule` 还在，这台设备就会没网，直到重新加上 nft 规则，或者删掉 `ip rule`。路由器本身仍可访问。
-- IPv6：这台设备的 IPv6 仍然走宽带，`curl -4` 看不出来。
-- 以上设置在路由器重启后全部失效，需要重新执行。开机自启以后会做成插件。
+- CellGlide has to stay on screen on the iPhone, and the iPhone should be on power.
+- Nothing can reach the device from the internet: no port forwarding, no DDNS.
+- IPv6 doesn't go through the iPhone yet.
+- Reloading the firewall (for example saving firewall settings in LuCI) removes the nft rule but not the `ip rule`, so the device has no internet until you add the nft rule again or delete the `ip rule`. The router itself stays reachable.
+- IPv6: the device's IPv6 still uses broadband, which `curl -4` doesn't show.
+- None of this survives a reboot; run it again after restarting. (Starting it at boot is what the package does.)

@@ -4,7 +4,7 @@
 
 ## 背景
 
-`Docs/OpenWrt-Router.md` 里的手动步骤已在 Linksys MX4300（OpenWrt 25.12.5）上验证可行：TCP 约 150 Mbps，UDP 也能通（QUIC、DNS）；修掉上行 UDP 突发丢包后，Cloudflare 测速丢包为 0%。
+`docs/OpenWrt-Router.zh-CN.md` 里的手动步骤已在 Linksys MX4300（OpenWrt 25.12.5）上验证可行：TCP 约 150 Mbps，UDP 也能通（QUIC、DNS）；修掉上行 UDP 突发丢包后，Cloudflare 测速丢包为 0%。
 
 手动方式的问题：
 - 要敲十几条命令；
@@ -162,7 +162,7 @@ DoH 和 DoT（443、853 端口）本来就是普通的 TCP 连接，会自然经
 
 - 源码放在本仓库的 `Router/OpenWrt/cellglide/`，按 OpenWrt 软件包格式写 `Makefile`。
 - 用 GitHub Actions 加 OpenWrt 官方 SDK 容器，打出两种包：OpenWrt 25.12 的 `.apk`，24.10 的 `.ipk`。手动触发，或者推送 `openwrt-*` 标签时触发，产物上传到 GitHub Releases。
-- `Docs/OpenWrt-Router.md` 改为：
+- `docs/OpenWrt-Router.zh-CN.md` 改为：
   1. 装依赖；
   2. 下载并安装 `cellglide` 包；
   3. `cellglide pair`；

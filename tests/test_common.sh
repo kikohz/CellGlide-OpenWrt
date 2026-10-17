@@ -5,10 +5,10 @@
 
 test_normalize_mac() {
 	assert_eq "$(cg_normalize_mac AA-BB-CC-0D-ee-FF)" "aa:bb:cc:0d:ee:ff" "dashes and upper case"
-	assert_eq "$(cg_normalize_mac 0c:29:8f:0a:99:12)" "0c:29:8f:0a:99:12" "already normal"
-	cg_normalize_mac 0c:29:8f:0a:99 >/dev/null
+	assert_eq "$(cg_normalize_mac 0c:11:22:33:44:55)" "0c:11:22:33:44:55" "already normal"
+	cg_normalize_mac 0c:11:22:33:44 >/dev/null
 	assert_eq "$?" "1" "too short"
-	cg_normalize_mac 0c:29:8f:0a:99:zz >/dev/null
+	cg_normalize_mac 0c:11:22:33:44:zz >/dev/null
 	assert_eq "$?" "1" "not hex"
 	cg_normalize_mac "" >/dev/null
 	assert_eq "$?" "1" "empty"
@@ -30,12 +30,12 @@ misc:
 }
 
 test_nft_ruleset_with_dns() {
-	assert_eq "$(cg_nft_ruleset 1.1.1.1 2606:4700:4700::1111 1 "" aa:bb:cc:dd:ee:ff 0c:29:8f:0a:99:12)" "table inet cellglide
+	assert_eq "$(cg_nft_ruleset 1.1.1.1 2606:4700:4700::1111 1 "" aa:bb:cc:dd:ee:ff 0c:11:22:33:44:55)" "table inet cellglide
 delete table inet cellglide
 table inet cellglide {
 	set cg_devices {
 		type ether_addr
-		elements = { aa:bb:cc:dd:ee:ff, 0c:29:8f:0a:99:12 }
+		elements = { aa:bb:cc:dd:ee:ff, 0c:11:22:33:44:55 }
 	}
 	chain cg_mark {
 		type filter hook prerouting priority mangle; policy accept;
@@ -86,10 +86,10 @@ test_next_state() {
 
 test_leases() {
 	list=$(printf '%s\n' \
-		'1792085847 9a:da:5c:9c:8f:68 10.10.10.227 iPhone 01:9a' \
-		'1792076972 0c:29:8f:0a:99:12 10.10.10.141 * 01:0c' | cg_leases 0c:29:8f:0a:99:12)
-	assert_eq "$list" "9a:da:5c:9c:8f:68  10.10.10.227     iPhone
-0c:29:8f:0a:99:12  10.10.10.141     -  (via iPhone)" "lease table"
+		'1792085847 9a:11:22:33:44:66 10.10.10.227 iPhone 01:9a' \
+		'1792076972 0c:11:22:33:44:55 10.10.10.141 * 01:0c' | cg_leases 0c:11:22:33:44:55)
+	assert_eq "$list" "9a:11:22:33:44:66  10.10.10.227     iPhone
+0c:11:22:33:44:55  10.10.10.141     -  (via iPhone)" "lease table"
 }
 
 test_nft_ruleset_all() {
@@ -115,10 +115,10 @@ table inet cellglide {
 
 test_leases_all() {
 	list=$(printf '%s\n' \
-		'1792085847 9a:da:5c:9c:8f:68 10.10.10.227 iPhone 01:9a' \
-		'1792076972 0c:29:8f:0a:99:12 10.10.10.141 * 01:0c' | cg_leases all)
-	assert_eq "$list" "9a:da:5c:9c:8f:68  10.10.10.227     iPhone  (via iPhone)
-0c:29:8f:0a:99:12  10.10.10.141     -  (via iPhone)" "every device marked"
+		'1792085847 9a:11:22:33:44:66 10.10.10.227 iPhone 01:9a' \
+		'1792076972 0c:11:22:33:44:55 10.10.10.141 * 01:0c' | cg_leases all)
+	assert_eq "$list" "9a:11:22:33:44:66  10.10.10.227     iPhone  (via iPhone)
+0c:11:22:33:44:55  10.10.10.141     -  (via iPhone)" "every device marked"
 }
 
 test_status_value() {

@@ -1,0 +1,7 @@
+# macOS
+.DS_Store
+
+# Packages built with the OpenWrt SDK
+*.apk
+*.ipk
+bin/

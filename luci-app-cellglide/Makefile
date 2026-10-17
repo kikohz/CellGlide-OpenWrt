@@ -9,6 +9,9 @@ LUCI_PKGARCH:=all
 PKG_VERSION:=0.2.0
 PKG_RELEASE:=3
 
+PKG_MAINTAINER:=kikohz <kikohz@gmail.com>
+PKG_LICENSE:=GPL-2.0-only
+
 include $(TOPDIR)/feeds/luci/luci.mk
 
 # Translations ship inside this package (root/usr/lib/lua/luci/i18n/*.lmo, compiled from

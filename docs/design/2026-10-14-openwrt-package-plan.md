@@ -56,7 +56,7 @@
 | `Router/OpenWrt/tests/run.sh` | 测试入口（`busybox sh` / `sh`） |
 | `Router/OpenWrt/tests/test_common.sh`、`test_net.sh` | 测试用例 |
 | `.github/workflows/openwrt.yml` | shellcheck、测试、SDK 打包（25.12 apk、24.10 ipk） |
-| `Docs/OpenWrt-Router.md` | 用户文档（改为装包方式） |
+| `docs/OpenWrt-Router.zh-CN.md` | 用户文档（改为装包方式） |
 
 ---
 
@@ -117,10 +117,10 @@ echo "$PASSED passed, $FAILED failed"
 
 test_normalize_mac() {
 	assert_eq "$(cg_normalize_mac AA-BB-CC-0D-ee-FF)" "aa:bb:cc:0d:ee:ff" "dashes and upper case"
-	assert_eq "$(cg_normalize_mac 0c:29:8f:0a:99:12)" "0c:29:8f:0a:99:12" "already normal"
-	cg_normalize_mac 0c:29:8f:0a:99 >/dev/null
+	assert_eq "$(cg_normalize_mac 0c:11:22:33:44:55)" "0c:11:22:33:44:55" "already normal"
+	cg_normalize_mac 0c:11:22:33:44 >/dev/null
 	assert_eq "$?" "1" "too short"
-	cg_normalize_mac 0c:29:8f:0a:99:zz >/dev/null
+	cg_normalize_mac 0c:11:22:33:44:zz >/dev/null
 	assert_eq "$?" "1" "not hex"
 	cg_normalize_mac "" >/dev/null
 	assert_eq "$?" "1" "empty"
@@ -142,12 +142,12 @@ misc:
 }
 
 test_nft_ruleset_with_dns() {
-	assert_eq "$(cg_nft_ruleset 1.1.1.1 2606:4700:4700::1111 1 aa:bb:cc:dd:ee:ff 0c:29:8f:0a:99:12)" "table inet cellglide
+	assert_eq "$(cg_nft_ruleset 1.1.1.1 2606:4700:4700::1111 1 aa:bb:cc:dd:ee:ff 0c:11:22:33:44:55)" "table inet cellglide
 delete table inet cellglide
 table inet cellglide {
 	set devices {
 		type ether_addr
-		elements = { aa:bb:cc:dd:ee:ff, 0c:29:8f:0a:99:12 }
+		elements = { aa:bb:cc:dd:ee:ff, 0c:11:22:33:44:55 }
 	}
 	chain mark {
 		type filter hook prerouting priority mangle; policy accept;
@@ -198,10 +198,10 @@ test_next_state() {
 
 test_leases() {
 	list=$(printf '%s\n' \
-		'1792085847 9a:da:5c:9c:8f:68 10.10.10.227 iPhone 01:9a' \
-		'1792076972 0c:29:8f:0a:99:12 10.10.10.141 * 01:0c' | cg_leases 0c:29:8f:0a:99:12)
-	assert_eq "$list" "9a:da:5c:9c:8f:68  10.10.10.227     iPhone
-0c:29:8f:0a:99:12  10.10.10.141     -  (via iPhone)" "lease table"
+		'1792085847 9a:11:22:33:44:66 10.10.10.227 iPhone 01:9a' \
+		'1792076972 0c:11:22:33:44:55 10.10.10.141 * 01:0c' | cg_leases 0c:11:22:33:44:55)
+	assert_eq "$list" "9a:11:22:33:44:66  10.10.10.227     iPhone
+0c:11:22:33:44:55  10.10.10.141     -  (via iPhone)" "lease table"
 }
 
 test_normalize_mac
@@ -1018,7 +1018,7 @@ scp -O Router/OpenWrt/cellglide/files/usr/sbin/cellglide root@10.10.10.1:/tmp/ce
 ssh root@10.10.10.1 'mkdir -p /tmp/cgtest/lib /tmp/cgconf && printf "config cellglide main\n" >/tmp/cgconf/cellglide'
 scp -O Router/OpenWrt/cellglide/files/usr/lib/cellglide/common.sh root@10.10.10.1:/tmp/cgtest/lib/
 ssh root@10.10.10.1 'sed "s#/usr/lib/cellglide#/tmp/cgtest/lib#" /tmp/cellglide-cli >/tmp/cgtest/cli; export CELLGLIDE_UCI_DIR=/tmp/cgconf; C="sh /tmp/cgtest/cli";
-$C add AA-BB-CC-DD-EE-FF MacBook; $C add aa:bb:cc:dd:ee:ff; $C add 0c:29:8f:0a:99:12; $C add nonsense; echo bad=$?;
+$C add AA-BB-CC-DD-EE-FF MacBook; $C add aa:bb:cc:dd:ee:ff; $C add 0c:11:22:33:44:55; $C add nonsense; echo bad=$?;
 cat /tmp/cgconf/cellglide; $C remove aa:bb:cc:dd:ee:ff; $C remove aa:bb:cc:dd:ee:ff; echo missing=$?;
 $C list | head -3; $C status; echo status=$?; $C; echo usage=$?'
 ssh root@10.10.10.1 'rm -rf /tmp/cgtest /tmp/cgconf /tmp/cellglide-cli'
@@ -1029,7 +1029,7 @@ Expected：
 - `nonsense` 报 `Not a MAC address`，`bad=1`；
 - 配置文件里有两个 `device` 段，MAC 都是小写；
 - 第一次 remove 输出 `back on the broadband line`；第二次输出 `not in the list`，`missing=1`；
-- list 打印租约，`0c:29:8f:0a:99:12` 那行带 `(via iPhone)`；
+- list 打印租约，`0c:11:22:33:44:55` 那行带 `(via iPhone)`；
 - status 输出 `cellglide is not running`，`status=1`；
 - 不带参数时打印用法，`usage=1`。
 
@@ -1227,7 +1227,7 @@ Expected：check 和两个 build 都成功。失败时按日志修复：常见�
 ### Task 6: 文档与真机验证
 
 **Files:**
-- Modify: `Docs/OpenWrt-Router.md`（整篇改写；原有手动步骤移到附录）
+- Modify: `docs/OpenWrt-Router.zh-CN.md`（整篇改写；原有手动步骤移到附录）
 
 - [ ] **Step 1: 改写文档**
 

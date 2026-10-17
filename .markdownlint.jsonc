@@ -1,0 +1,6 @@
+{
+  // One paragraph per line, as in the rest of the docs.
+  "MD013": false,
+  // "Install" and "Pairing" appear both in the guide and in its manual-setup appendix.
+  "MD024": { "siblings_only": true }
+}
