@@ -142,7 +142,7 @@ uci commit cellglide
 | `name` | 不设置 | 在 iPhone 上显示的名字，不设时用路由器的主机名 |
 | `all` | 不设置 | 设为 `1` 时局域网所有设备都走手机，等同于 `cellglide add all` |
 
-每台选中的设备是一个 `device` 段，有 `mac` 和 `name` 两项，一般用 `cellglide add` 来加，不用手改。
+每台选中的设备是一个 `device` 段，有 `mac` 和 `name` 两项，一般用 `cellglide add` 来加，不用手改。在网页上给没选中的设备起的名字存在 `alias` 段里（同样是 `mac` 和 `name`），只用来显示，不影响哪台设备走手机。
 
 ## 已知限制
 

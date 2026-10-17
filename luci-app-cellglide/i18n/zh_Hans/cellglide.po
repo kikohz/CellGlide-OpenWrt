@@ -52,8 +52,17 @@ msgstr "走手机"
 msgid "No devices yet. They appear here once they get an address from this router."
 msgstr "还没有设备。设备从这台路由器拿到地址后会出现在这里。"
 
-msgid "Note"
-msgstr "备注"
+msgid "Add a name"
+msgstr "添加备注名"
+
+msgid "Name for %s"
+msgstr "%s 的备注名"
+
+msgid "Through iPhone: %s"
+msgstr "经 iPhone 上网：%s"
+
+msgid "Hostname: %s"
+msgstr "主机名：%s"
 
 msgid "Added by hand"
 msgstr "手动添加"

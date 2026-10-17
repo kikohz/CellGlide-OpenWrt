@@ -21,14 +21,27 @@ return view.extend({
 		var leases = (data[1] && data[1].dhcp_leases) || [];
 		var self = this;
 
-		// One entry per MAC: the chosen devices from UCI, then every DHCP lease.
+		// One entry per MAC: the chosen devices from UCI, the names kept for devices that
+		// aren't chosen (alias sections, which only this page reads), then every DHCP lease.
 		this.rows = [];
 		var byMAC = {};
 		uci.sections('cellglide', 'device', function(section) {
 			var mac = normalizeMAC(section.mac);
 			if (!mac || byMAC[mac])
 				return;
-			byMAC[mac] = { mac: mac, section: section['.name'], alias: section.name || '', host: '', ip: '', on: true, manual: true };
+			byMAC[mac] = { mac: mac, section: section['.name'], aliasSection: null, alias: section.name || '', host: '', ip: '', on: true, manual: true };
+			self.rows.push(byMAC[mac]);
+		});
+		uci.sections('cellglide', 'alias', function(section) {
+			var mac = normalizeMAC(section.mac);
+			if (!mac)
+				return;
+			if (byMAC[mac]) {
+				// Chosen after all (say with "cellglide add"): the device section's name wins.
+				byMAC[mac].aliasSection = section['.name'];
+				return;
+			}
+			byMAC[mac] = { mac: mac, section: null, aliasSection: section['.name'], alias: section.name || '', host: '', ip: '', on: false, manual: true };
 			self.rows.push(byMAC[mac]);
 		});
 		leases.forEach(function(lease) {
@@ -37,7 +50,7 @@ return view.extend({
 				return;
 			var entry = byMAC[mac];
 			if (!entry) {
-				entry = byMAC[mac] = { mac: mac, section: null, alias: '', on: false };
+				entry = byMAC[mac] = { mac: mac, section: null, aliasSection: null, alias: '', on: false };
 				self.rows.push(entry);
 			}
 			entry.host = lease.hostname || '';
@@ -62,7 +75,7 @@ return view.extend({
 				}
 				var entry = byMAC[mac];
 				if (!entry) {
-					entry = byMAC[mac] = { mac: mac, section: null, alias: '', host: '', ip: '', on: false, manual: true };
+					entry = byMAC[mac] = { mac: mac, section: null, aliasSection: null, alias: '', host: '', ip: '', on: false, manual: true };
 					self.rows.push(entry);
 				}
 				entry.on = true;
@@ -113,13 +126,17 @@ return view.extend({
 			]));
 
 		this.rows.forEach(function(entry) {
+			// The row is redrawn when a device is added by hand, so a typed name goes into
+			// entry right away rather than living only in this input.
 			entry.aliasInput = E('input', { 'type': 'text', 'class': 'cbi-input-text', 'value': entry.alias,
-				'placeholder': entry.host || _('Note'), 'style': 'width:12em' });
+				'placeholder': _('Add a name'), 'aria-label': _('Name for %s').format(entry.mac), 'style': 'width:12em',
+				'input': function(ev) { entry.alias = ev.target.value; } });
 			entry.box = E('input', { 'type': 'checkbox', 'checked': entry.on ? '' : null,
+				'aria-label': _('Through iPhone: %s').format((entry.alias || entry.host) ? '%s (%s)'.format(entry.alias || entry.host, entry.mac) : entry.mac),
 				'change': function(ev) { entry.on = ev.target.checked; } });
 			rows.push(E('tr', { 'class': 'tr' }, [
 				E('td', { 'class': 'td' }, [ entry.aliasInput,
-					entry.host && entry.alias ? E('div', { 'style': 'opacity:.65;font-size:90%' }, [ entry.host ]) : '',
+					entry.host ? E('div', { 'style': 'opacity:.65;font-size:90%' }, [ _('Hostname: %s').format(entry.host) ]) : '',
 					entry.manual ? E('div', { 'style': 'opacity:.65;font-size:90%' }, _('Added by hand')) : '' ]),
 				E('td', { 'class': 'td' }, [ entry.ip || '—' ]),
 				E('td', { 'class': 'td' }, E('code', {}, [ entry.mac ])),
@@ -142,7 +159,7 @@ return view.extend({
 	handleSave: function() {
 		uci.set('cellglide', 'main', 'all', this.allBox.checked ? '1' : null);
 		this.rows.forEach(function(entry) {
-			var alias = entry.aliasInput ? entry.aliasInput.value.trim() : entry.alias;
+			var alias = String(entry.alias || '').trim();
 			if (entry.on && !entry.section) {
 				entry.section = uci.add('cellglide', 'device');
 				uci.set('cellglide', entry.section, 'mac', entry.mac);
@@ -152,6 +169,18 @@ return view.extend({
 			else if (entry.section) {
 				uci.remove('cellglide', entry.section);
 				entry.section = null;
+			}
+			// A device that isn't chosen keeps its name in an alias section.
+			if (!entry.on && alias) {
+				if (!entry.aliasSection) {
+					entry.aliasSection = uci.add('cellglide', 'alias');
+					uci.set('cellglide', entry.aliasSection, 'mac', entry.mac);
+				}
+				uci.set('cellglide', entry.aliasSection, 'name', alias);
+			}
+			else if (entry.aliasSection) {
+				uci.remove('cellglide', entry.aliasSection);
+				entry.aliasSection = null;
 			}
 			entry.alias = alias;
 		});

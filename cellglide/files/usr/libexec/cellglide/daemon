@@ -30,7 +30,7 @@ MACS=""
 add_device() {
 	local mac
 	config_get mac "$1" mac
-	mac=$(cg_normalize_mac "$mac") && MACS="$MACS $mac"
+	mac=$(cg_normalize_mac "$mac") && MACS="${MACS:+$MACS }$mac"
 }
 
 config_load cellglide
@@ -141,7 +141,7 @@ go_up() {
 	esac
 	choose_dns
 	exit_address
-	log "using the iPhone for:${MACS:- no devices yet}"
+	log "using the iPhone for: ${MACS:-no devices yet}"
 }
 
 # The app's own resolver when it's on (it reaches the phone over TCP, so it works without
@@ -177,6 +177,7 @@ go_down() {
 cleanup() {
 	hev_stop
 	cg_teardown
+	log "stopped, the chosen devices use broadband until it starts again"
 	rm -f "$RUN/status" "$RUN/status.tmp" "$RUN/hev.yml" "$RUN/nft.err"
 	exit 0
 }

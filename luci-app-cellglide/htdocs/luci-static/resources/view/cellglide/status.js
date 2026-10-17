@@ -101,7 +101,8 @@ function small(text) {
 }
 
 function table(s) {
-	var phone = s.device
+	// While the service is stopped nothing looks for the iPhone, so don't claim it's absent.
+	var phone = !s.running ? '—' : s.device
 		? [ E('strong', {}, [ s.name || _('iPhone') ]), small('UDID ' + s.device) ]
 		: _('Not connected');
 	var sharing = s.state == 'up' ? _('In use since %s').format(clock(s.since)) : _('Not in use');
@@ -139,18 +140,29 @@ return view.extend({
 	},
 
 	render: function(status) {
-		var body = E('div', {}, [ banner(status), table(status) ]);
+		// The banner is only redrawn when what it says changes: redrawing it every poll
+		// would replace its Start button under the user's pointer and swallow the click.
+		var bannerKey = function(s) {
+			return [ s.running, s.enabled, s.state, s.reason, s.fallback, s.all, s.devices, s.since ].join('|');
+		};
+		var key = bannerKey(status);
+		var top = E('div', {}, [ banner(status) ]);
+		var rest = E('div', {}, [ table(status) ]);
 
 		poll.add(function() {
 			return callStatus().then(function(s) {
-				dom.content(body, [ banner(s), table(s) ]);
+				if (bannerKey(s) != key) {
+					key = bannerKey(s);
+					dom.content(top, [ banner(s) ]);
+				}
+				dom.content(rest, [ table(s) ]);
 			});
 		}, 5);
 
 		return E('div', { 'class': 'cbi-map' }, [
 			E('h2', {}, _('CellGlide')),
 			E('div', { 'class': 'cbi-map-descr' }, _('Use the iPhone plugged into this router as the internet connection for chosen devices.')),
-			E('div', { 'class': 'cbi-section' }, body),
+			E('div', { 'class': 'cbi-section' }, [ top, rest ]),
 			E('div', { 'class': 'cbi-section-descr' }, _('Refreshed every 5 seconds.'))
 		]);
 	},
