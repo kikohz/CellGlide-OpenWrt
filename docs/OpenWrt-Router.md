@@ -21,14 +21,14 @@ OpenWrt 25.12（`apk`）：
 
 ```sh
 apk update
-apk add --allow-untrusted ./cellglide-0.2.0-r1.apk ./luci-app-cellglide-0.2.0-r1.apk
+apk add --allow-untrusted ./cellglide-0.2.0-r2.apk ./luci-app-cellglide-0.2.0-r3.apk
 ```
 
 OpenWrt 24.10（`opkg`）：
 
 ```sh
 opkg update
-opkg install ./cellglide_0.2.0-r1_all.ipk ./luci-app-cellglide_0.2.0-r1_all.ipk
+opkg install ./cellglide_0.2.0-r2_all.ipk ./luci-app-cellglide_0.2.0-r3_all.ipk
 ```
 
 安装时会顺带从官方源装好依赖：`usbmuxd`、`libusbmuxd-utils`、`libimobiledevice-utils`、`hev-socks5-tunnel`、`kmod-tun`、`ucode`、`ucode-mod-socket`。所以安装前要先 `update`，路由器也要能上网。
