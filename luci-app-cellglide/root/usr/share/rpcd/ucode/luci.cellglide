@@ -54,6 +54,7 @@ const methods = {
 				dns4: uci.get('cellglide', 'main', 'dns') ?? '1.1.1.1',
 				exit: status.exit ?? '',
 				reason: status.reason ?? 'none',
+				error: status.error ?? '',
 				now: time()
 			};
 		}

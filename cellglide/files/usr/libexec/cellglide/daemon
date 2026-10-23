@@ -25,6 +25,8 @@ DNS=router
 ERROR=""
 # What the web interface translates: none, no-iphone, not-paired, not-sharing or tunnel.
 REASON=none
+# The last tunnel failure logged, so a failure that repeats every round is logged once.
+TUNNEL_LOGGED=""
 MACS=""
 
 add_device() {
@@ -109,22 +111,34 @@ kill_stale_hev() {
 }
 
 go_up() {
-	local tries=0
+	local tries=0 why
 	hev_stop
 	kill_stale_hev
-	cg_hev_config "$LOCAL_PORT" >"$RUN/hev.yml"
-	hev-socks5-tunnel "$RUN/hev.yml" &
+	if cg_ipv6_usable; then
+		cg_hev_config "$LOCAL_PORT" 1 >"$RUN/hev.yml"
+	else
+		cg_hev_config "$LOCAL_PORT" 0 >"$RUN/hev.yml"
+	fi
+	# hev logs to stderr; kept so a failed start can say why.
+	: >"$RUN/hev.err"
+	hev-socks5-tunnel "$RUN/hev.yml" 2>>"$RUN/hev.err" &
 	HEV_PID=$!
-	while [ ! -d "/sys/class/net/$CG_TUN" ] && [ "$tries" -lt 10 ]; do
+	# hev that has already exited won't bring the tunnel up; don't wait out the 10 seconds.
+	while [ ! -d "/sys/class/net/$CG_TUN" ] && [ "$tries" -lt 10 ] && hev_alive; do
 		sleep 1
 		tries=$((tries + 1))
 	done
 	if [ ! -d "/sys/class/net/$CG_TUN" ]; then
-		ERROR="the tunnel did not start"
-		REASON=tunnel
 		hev_stop
+		why=$(cg_hev_error "$RUN/hev.err")
+		ERROR="the tunnel did not start${why:+, hev says: $why}"
+		REASON=tunnel
+		# Retried every round; logged once per distinct reason.
+		[ "$ERROR" = "$TUNNEL_LOGGED" ] || log "$ERROR"
+		TUNNEL_LOGGED=$ERROR
 		return 1
 	fi
+	TUNNEL_LOGGED=""
 	cg_setup "$FALLBACK" "$(lan_routes 4)" "$(lan_routes 6)" || log "cg_setup reported failures"
 	if ! cg_tunnel_up; then
 		ERROR="could not route through the tunnel"
@@ -178,7 +192,7 @@ cleanup() {
 	hev_stop
 	cg_teardown
 	log "stopped, the chosen devices use broadband until it starts again"
-	rm -f "$RUN/status" "$RUN/status.tmp" "$RUN/hev.yml" "$RUN/nft.err"
+	rm -f "$RUN/status" "$RUN/status.tmp" "$RUN/hev.yml" "$RUN/hev.err" "$RUN/nft.err"
 	exit 0
 }
 

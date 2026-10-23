@@ -155,6 +155,23 @@ Each chosen device is a `device` section with `mac` and `name`. You normally add
 - One iPhone at a time.
 - If you also run other proxy packages (sing-box, OpenClash and so on), exclude these devices from them.
 
+## Troubleshooting
+
+**`not in use (the tunnel did not start …)`**: the iPhone is reachable and sharing, but `hev-socks5-tunnel` on the router couldn't create the `cgtun` interface. Since this version the message ends with what hev said:
+
+- `socks5 tunnel ipv6`: IPv6 is turned off on the router. Versions up to 0.2.0-r2 always gave the tunnel an IPv6 address, which fails then; update the package. 0.2.0-r3 and later leave IPv6 out when it's off.
+- `socks5 tunnel open (…)`: the TUN device can't be opened. Check that `kmod-tun` is installed and loaded (`lsmod | grep tun`, `ls -l /dev/net/tun`); a reboot after installing it helps on some builds.
+
+When reporting a problem, include the output of:
+
+```sh
+cellglide status
+logread -e cellglide -e hev | tail -n 30
+cat /etc/openwrt_release
+apk info -v 2>/dev/null | grep -E "cellglide|hev|kmod-tun" || opkg list-installed | grep -E "cellglide|hev|kmod-tun"
+cat /proc/sys/net/ipv6/conf/all/disable_ipv6 /proc/sys/net/ipv6/conf/default/disable_ipv6
+```
+
 ## Uninstall
 
 ```sh

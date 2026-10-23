@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=cellglide
 PKG_VERSION:=0.2.0
-PKG_RELEASE:=2
+PKG_RELEASE:=3
 
 PKG_MAINTAINER:=kikohz <kikohz@gmail.com>
 PKG_LICENSE:=GPL-2.0-only
@@ -50,9 +50,15 @@ define Package/cellglide/install
 endef
 
 # The firewall include only takes effect after fw4 reloads.
+# On an upgrade the default postinst only runs "start", which procd ignores while the
+# service runs with the same command line, so the old daemon would keep running.
 define Package/cellglide/postinst
 #!/bin/sh
-[ -n "$${IPKG_INSTROOT}" ] || fw4 -q reload
+[ -n "$${IPKG_INSTROOT}" ] && exit 0
+fw4 -q reload
+if [ "$${PKG_UPGRADE}" = 1 ] && /etc/init.d/cellglide running; then
+	/etc/init.d/cellglide restart
+fi
 exit 0
 endef
 

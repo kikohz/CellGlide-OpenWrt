@@ -254,6 +254,9 @@ msgstr "和 iPhone 的连接没有建立"
 msgid "It retries every few seconds. If this stays, check the system log for cellglide."
 msgstr "每隔几秒会自动重试。一直这样的话，请在系统日志里查看 cellglide 的记录。"
 
+msgid "Details: %s"
+msgstr "详情：%s"
+
 msgid "Waiting for the iPhone"
 msgstr "正在等待 iPhone"
 

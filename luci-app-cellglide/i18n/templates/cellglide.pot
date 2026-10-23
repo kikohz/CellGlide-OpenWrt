@@ -252,6 +252,9 @@ msgstr ""
 msgid "It retries every few seconds. If this stays, check the system log for cellglide."
 msgstr ""
 
+msgid "Details: %s"
+msgstr ""
+
 msgid "Waiting for the iPhone"
 msgstr ""
 

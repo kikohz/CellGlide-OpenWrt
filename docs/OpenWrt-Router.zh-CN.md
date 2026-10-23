@@ -155,6 +155,23 @@ uci commit cellglide
 - 一次只支持一台 iPhone。
 - 和其他代理插件（sing-box、OpenClash 等）同时使用时，把这些设备从那些插件里排除。
 
+## 排查问题
+
+**`not in use (the tunnel did not start …)`**：iPhone 能连上，也在共享，但路由器上的 `hev-socks5-tunnel` 没能建好 `cgtun` 网卡。从这个版本起，这条信息后面会带上 hev 自己的报错：
+
+- `socks5 tunnel ipv6`：路由器关闭了 IPv6。0.2.0-r2 及以前的版本总会给隧道配 IPv6 地址，这时就会失败；请更新软件包，0.2.0-r3 起关闭 IPv6 时不再配。
+- `socks5 tunnel open (…)`：打不开 TUN 设备。检查 `kmod-tun` 是否装好并已加载（`lsmod | grep tun`、`ls -l /dev/net/tun`）；有些固件装完要重启一次。
+
+反馈问题时，请附上这些命令的输出：
+
+```sh
+cellglide status
+logread -e cellglide -e hev | tail -n 30
+cat /etc/openwrt_release
+apk info -v 2>/dev/null | grep -E "cellglide|hev|kmod-tun" || opkg list-installed | grep -E "cellglide|hev|kmod-tun"
+cat /proc/sys/net/ipv6/conf/all/disable_ipv6 /proc/sys/net/ipv6/conf/default/disable_ipv6
+```
+
 ## 卸载
 
 ```sh

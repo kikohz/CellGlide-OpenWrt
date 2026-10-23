@@ -22,13 +22,17 @@ cg_normalize_mac() {
 
 # hev-socks5-tunnel configuration. UDP rides inside the SOCKS TCP connection,
 # because iproxy forwards TCP only.
+# The second argument is 0 when the router has no usable IPv6: hev exits if it can't give
+# the tunnel its IPv6 address, so that line is left out then.
 cg_hev_config() {
 	cat <<EOF
 tunnel:
   name: $CG_TUN
   mtu: 1500
   ipv4: 198.18.0.1
-  ipv6: 'fc00::cafe:1'
+EOF
+	[ "${2:-1}" = 0 ] || echo "  ipv6: 'fc00::cafe:1'"
+	cat <<EOF
 socks5:
   address: 127.0.0.1
   port: $1
@@ -124,6 +128,23 @@ cg_leases() {
 		[ "$name" = "*" ] && name="-"
 		printf '%s  %-15s  %s%s\n' "$mac" "$ip" "$name" "$flag"
 	done
+}
+
+# Succeeds when a new interface would get IPv6: the kernel has it, and neither the all nor
+# the default disable_ipv6 switch is on. The argument stands in for /proc in tests.
+cg_ipv6_usable() {
+	local proc="${1:-/proc}" sw
+	[ -e "$proc/net/if_inet6" ] || return 1
+	for sw in all default; do
+		[ "$(cat "$proc/sys/net/ipv6/conf/$sw/disable_ipv6" 2>/dev/null)" = 1 ] && return 1
+	done
+	return 0
+}
+
+# The last message hev logged ("[time] [E] socks5 tunnel ipv6" gives "socks5 tunnel ipv6"),
+# made safe for the status file. Prints nothing when there is none.
+cg_hev_error() {
+	cg_status_value "$(sed -n 's/^\[[^]]*\] \[[A-Z]\] //p' "$1" 2>/dev/null | tail -n 1)"
 }
 
 # Makes outside text (an iPhone's name) safe for the status file, which is sourced as

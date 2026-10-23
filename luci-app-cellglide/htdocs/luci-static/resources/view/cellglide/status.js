@@ -71,6 +71,9 @@ function banner(s) {
 		case 'tunnel':
 			title = _('The connection to the iPhone didn\'t start');
 			text = _('It retries every few seconds. If this stays, check the system log for cellglide.');
+			// What hev-socks5-tunnel said, when it said anything; useful in a bug report.
+			if (s.error)
+				text += ' ' + _('Details: %s').format(s.error);
 			break;
 		default:
 			title = _('Waiting for the iPhone');
@@ -143,7 +146,7 @@ return view.extend({
 		// The banner is only redrawn when what it says changes: redrawing it every poll
 		// would replace its Start button under the user's pointer and swallow the click.
 		var bannerKey = function(s) {
-			return [ s.running, s.enabled, s.state, s.reason, s.fallback, s.all, s.devices, s.since ].join('|');
+			return [ s.running, s.enabled, s.state, s.reason, s.error, s.fallback, s.all, s.devices, s.since ].join('|');
 		};
 		var key = bannerKey(status);
 		var top = E('div', {}, [ banner(status) ]);

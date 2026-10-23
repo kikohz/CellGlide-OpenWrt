@@ -29,6 +29,54 @@ misc:
   udp-read-write-timeout: 30000" "hev config"
 }
 
+test_hev_config_without_ipv6() {
+	assert_eq "$(cg_hev_config 19876 0)" "tunnel:
+  name: cgtun
+  mtu: 1500
+  ipv4: 198.18.0.1
+socks5:
+  address: 127.0.0.1
+  port: 19876
+  udp: 'tcp'
+misc:
+  log-level: warn
+  udp-read-write-timeout: 30000" "hev config without IPv6"
+	assert_eq "$(cg_hev_config 19876 1)" "$(cg_hev_config 19876)" "IPv6 is the default"
+}
+
+test_ipv6_usable() {
+	local proc
+	proc=$(mktemp -d)
+	mkdir -p "$proc/net" "$proc/sys/net/ipv6/conf/all" "$proc/sys/net/ipv6/conf/default"
+	cg_ipv6_usable "$proc"
+	assert_eq "$?" "1" "no IPv6 in the kernel"
+	: >"$proc/net/if_inet6"
+	echo 0 >"$proc/sys/net/ipv6/conf/all/disable_ipv6"
+	echo 0 >"$proc/sys/net/ipv6/conf/default/disable_ipv6"
+	cg_ipv6_usable "$proc"
+	assert_eq "$?" "0" "IPv6 on"
+	echo 1 >"$proc/sys/net/ipv6/conf/default/disable_ipv6"
+	cg_ipv6_usable "$proc"
+	assert_eq "$?" "1" "disabled for new interfaces"
+	echo 0 >"$proc/sys/net/ipv6/conf/default/disable_ipv6"
+	echo 1 >"$proc/sys/net/ipv6/conf/all/disable_ipv6"
+	cg_ipv6_usable "$proc"
+	assert_eq "$?" "1" "disabled everywhere"
+	rm -rf "$proc"
+}
+
+test_hev_error() {
+	local log
+	log=$(mktemp)
+	assert_eq "$(cg_hev_error "$log")" "" "nothing logged"
+	printf '%s\n' "[2026-10-22 21:14:55] [W] socks5 tunnel write" "[2026-10-22 21:14:55] [E] socks5 tunnel open (No such device)" >"$log"
+	assert_eq "$(cg_hev_error "$log")" "socks5 tunnel open (No such device)" "last message, without time and level"
+	printf '%s\n' "[2026-10-22 21:14:55] [E] it's broken" >"$log"
+	assert_eq "$(cg_hev_error "$log")" "its broken" "safe for the status file"
+	assert_eq "$(cg_hev_error /nonexistent/hev.err)" "" "no log file"
+	rm -f "$log"
+}
+
 test_nft_ruleset_with_dns() {
 	assert_eq "$(cg_nft_ruleset 1.1.1.1 2606:4700:4700::1111 1 "" aa:bb:cc:dd:ee:ff 0c:11:22:33:44:55)" "table inet cellglide
 delete table inet cellglide
@@ -169,6 +217,9 @@ table inet cellglide {
 
 test_normalize_mac
 test_hev_config
+test_hev_config_without_ipv6
+test_ipv6_usable
+test_hev_error
 test_nft_ruleset_with_dns
 test_nft_ruleset_empty
 test_lan_routes
