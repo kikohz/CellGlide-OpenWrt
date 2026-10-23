@@ -1,14 +1,14 @@
 # Changelog / 更新记录
 
-## Unreleased
+## 0.2.1 — 2026-10-22
 
-Packages: `cellglide` 0.2.0-r3, `luci-app-cellglide` 0.2.0-r4.
+Packages: `cellglide` 0.2.1-r1, `luci-app-cellglide` 0.2.1-r1.
 
 - Fixed: on routers with IPv6 turned off, the tunnel never started ("the tunnel did not start"), because hev-socks5-tunnel exits when it can't give the tunnel an IPv6 address. The IPv6 address is now left out when IPv6 is off.
 - When the tunnel doesn't start, the status, the system log and the Status page say what hev reported. A failure that repeats is logged once.
 - Fixed: upgrading the `cellglide` package left the old daemon running until the service was restarted or the router rebooted. An upgrade now restarts the service.
 
-软件包：`cellglide` 0.2.0-r3、`luci-app-cellglide` 0.2.0-r4。
+软件包：`cellglide` 0.2.1-r1、`luci-app-cellglide` 0.2.1-r1。
 
 - 修复：路由器关闭了 IPv6 时隧道始终起不来（“the tunnel did not start”），因为 hev-socks5-tunnel 给隧道配不上 IPv6 地址就会退出。现在关闭 IPv6 时不再配 IPv6 地址。
 - 隧道起不来时，状态、系统日志和状态页都会写明 hev 的报错；反复出现的同一个错误只记一次日志。

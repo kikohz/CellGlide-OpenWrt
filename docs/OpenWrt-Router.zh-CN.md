@@ -17,20 +17,20 @@
 
 ## 安装
 
-先到 [GitHub Releases](https://github.com/kikohz/CellGlide-OpenWrt/releases) 页面（`v0.2.0`）下载安装包：`cellglide` 是后台服务，`luci-app-cellglide` 是路由器后台里的网页界面（不需要网页界面的话可以只装第一个）。传到路由器的 `/tmp`，再安装。
+先到 [GitHub Releases](https://github.com/kikohz/CellGlide-OpenWrt/releases) 页面（`v0.2.1`）下载安装包：`cellglide` 是后台服务，`luci-app-cellglide` 是路由器后台里的网页界面（不需要网页界面的话可以只装第一个）。传到路由器的 `/tmp`，再安装。
 
 OpenWrt 25.12（`apk`）：
 
 ```sh
 apk update
-apk add --allow-untrusted ./cellglide-0.2.0-r2.apk ./luci-app-cellglide-0.2.0-r3.apk
+apk add --allow-untrusted ./cellglide-0.2.1-r1.apk ./luci-app-cellglide-0.2.1-r1.apk
 ```
 
 OpenWrt 24.10（`opkg`）：
 
 ```sh
 opkg update
-opkg install ./cellglide_0.2.0-r2_all.ipk ./luci-app-cellglide_0.2.0-r3_all.ipk
+opkg install ./cellglide_0.2.1-r1_all.ipk ./luci-app-cellglide_0.2.1-r1_all.ipk
 ```
 
 安装时会顺带从官方源装好依赖：`usbmuxd`、`libusbmuxd-utils`、`libimobiledevice-utils`、`hev-socks5-tunnel`、`kmod-tun`、`ucode`、`ucode-mod-socket`。所以安装前要先 `update`，路由器也要能上网。
@@ -159,7 +159,7 @@ uci commit cellglide
 
 **`not in use (the tunnel did not start …)`**：iPhone 能连上，也在共享，但路由器上的 `hev-socks5-tunnel` 没能建好 `cgtun` 网卡。从这个版本起，这条信息后面会带上 hev 自己的报错：
 
-- `socks5 tunnel ipv6`：路由器关闭了 IPv6。0.2.0-r2 及以前的版本总会给隧道配 IPv6 地址，这时就会失败；请更新软件包，0.2.0-r3 起关闭 IPv6 时不再配。
+- `socks5 tunnel ipv6`：路由器关闭了 IPv6。0.2.0 及以前的版本总会给隧道配 IPv6 地址，这时就会失败；请更新软件包，0.2.1 起关闭 IPv6 时不再配。
 - `socks5 tunnel open (…)`：打不开 TUN 设备。检查 `kmod-tun` 是否装好并已加载（`lsmod | grep tun`、`ls -l /dev/net/tun`）；有些固件装完要重启一次。
 
 反馈问题时，请附上这些命令的输出：
