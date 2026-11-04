@@ -162,6 +162,15 @@ Each chosen device is a `device` section with `mac` and `name`. You normally add
 - `socks5 tunnel ipv6`: IPv6 is turned off on the router. Versions up to 0.2.0 always gave the tunnel an IPv6 address, which fails then; update the package. 0.2.1 and later leave IPv6 out when it's off.
 - `socks5 tunnel open (…)`: the TUN device can't be opened. Check that `kmod-tun` is installed and loaded (`lsmod | grep tun`, `ls -l /dev/net/tun`); a reboot after installing it helps on some builds.
 
+**The CellGlide pages show `Error: No related RPC reply` or stay on "Loading view…" (GL.iNet firmware)**: on GL.iNet's 4.x firmware the GL admin panel's nginx answers on port 80, and the `/ubus/` address LuCI uses by default doesn't reach rpcd through it, so LuCI pages can't get data even though `ubus call luci.cellglide status` works over SSH. Point LuCI at its own RPC address, then log out of LuCI and back in:
+
+```sh
+uci set luci.main.ubuspath='/cgi-bin/luci/admin/ubus'
+uci commit luci
+```
+
+To undo it, set it back to `/ubus/`. This is a LuCI-wide setting on GL.iNet firmware, not something CellGlide changes. Reported on a GL.iNet MT3000 with firmware 4.11.0-op25 (OpenWrt 25.12.6).
+
 When reporting a problem, include the output of:
 
 ```sh

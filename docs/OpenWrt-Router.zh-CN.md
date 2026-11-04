@@ -162,6 +162,15 @@ uci commit cellglide
 - `socks5 tunnel ipv6`：路由器关闭了 IPv6。0.2.0 及以前的版本总会给隧道配 IPv6 地址，这时就会失败；请更新软件包，0.2.1 起关闭 IPv6 时不再配。
 - `socks5 tunnel open (…)`：打不开 TUN 设备。检查 `kmod-tun` 是否装好并已加载（`lsmod | grep tun`、`ls -l /dev/net/tun`）；有些固件装完要重启一次。
 
+**CellGlide 页面显示 `Error: No related RPC reply`，或停在“加载视图中”（GL.iNet 固件）**：GL.iNet 4.x 固件的 80 端口由 GL 管理界面的 nginx 负责，LuCI 默认用的 `/ubus/` 地址经过它到不了 rpcd，所以即使 SSH 里 `ubus call luci.cellglide status` 正常，LuCI 页面也拿不到数据。把 LuCI 改用它自带的 RPC 地址，然后退出 LuCI 再重新登录：
+
+```sh
+uci set luci.main.ubuspath='/cgi-bin/luci/admin/ubus'
+uci commit luci
+```
+
+想改回来，把它设回 `/ubus/`。这是 GL.iNet 固件上整个 LuCI 的设置，CellGlide 不会去改它。问题来自 GL.iNet MT3000、4.11.0-op25 固件（OpenWrt 25.12.6）的反馈。
+
 反馈问题时，请附上这些命令的输出：
 
 ```sh
