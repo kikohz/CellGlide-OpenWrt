@@ -3,14 +3,14 @@
 		"description": "Grant access to CellGlide",
 		"read": {
 			"ubus": {
-				"luci.cellglide": [ "status", "paired" ],
+				"luci.cellglide": [ "status", "paired", "map" ],
 				"luci-rpc": [ "getDHCPLeases" ]
 			},
 			"uci": [ "cellglide" ]
 		},
 		"write": {
 			"ubus": {
-				"luci.cellglide": [ "pair", "start", "diag", "diag_send", "diag_result" ]
+				"luci.cellglide": [ "pair", "start", "map_geoip", "diag", "diag_send", "diag_result" ]
 			},
 			"uci": [ "cellglide" ]
 		}

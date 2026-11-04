@@ -1,9 +1,9 @@
 // rpcd plugin behind the CellGlide pages: status for the overview, pairing, starting the
-// service and the diagnostics report. Everything else (devices, settings) goes through
+// service, the traffic map's counts and the diagnostics report. Everything else (devices, settings) goes through
 // LuCI's own UCI calls.
 'use strict';
 
-import { readfile, writefile, popen, mkdir, unlink } from 'fs';
+import { readfile, writefile, popen, mkdir, unlink, stat } from 'fs';
 import { cursor } from 'uci';
 
 const ubus = require('ubus').connect();
@@ -11,6 +11,10 @@ const ubus = require('ubus').connect();
 // Where a diagnostics report waits while it is sent; only root can read it.
 const DIAG = '/tmp/cellglide-diag';
 const DIAG_TOOL = '/usr/libexec/cellglide/diag';
+const GEOIP = '/tmp/cellglide-geoip';
+const GEOIP_TOOL = '/usr/libexec/cellglide/geoip';
+const GEOIP_CHECK_EVERY = 7 * 24 * 3600;
+const GEOIP_RETRY_AFTER = 600;
 
 // The daemon's status file: key='value' lines with quotes and line breaks already removed.
 function read_status() {
@@ -49,6 +53,53 @@ function diag_report(args) {
 	unlink(DIAG + '/contact.json');
 	try { json(result.output); } catch (e) { return null; }
 	return result.code == 0 ? result.output : null;
+}
+
+// What the geoip tool last saved, read here so polling the map starts no process.
+function geoip_state() {
+	let saved = null;
+	try { saved = json(readfile(GEOIP + '/state.json') ?? 'null'); } catch (e) { saved = null; }
+	const result = {};
+	if (saved?.file && stat(GEOIP + '/' + saved.file)) {
+		result.month = saved.month;
+		result.file = saved.file;
+		result.checked = saved.checked;
+	}
+	const lock = stat(GEOIP + '/lock');
+	if (lock && time() - lock.mtime < 300)
+		result.busy = true;
+	else if (saved?.failed)
+		result.failed = saved.failed;
+	return result;
+}
+
+// Bytes per remote address since this session's tunnel came up, from the kernel's sets
+// (table inet cellglide_map, see cg_map_ruleset): [address, sent, received] each.
+// One nft call lists all four sets; nothing is kept here.
+function map_totals() {
+	const fd = popen('nft -j list table inet cellglide_map 2>/dev/null');
+	if (!fd)
+		return [];
+	const output = fd.read('all');
+	fd.close();
+	let listing = null;
+	try { listing = json(output || 'null'); } catch (e) { listing = null; }
+	const byAddress = {};
+	for (let item in listing?.nftables ?? []) {
+		const set = item.set;
+		const column = set?.name in [ 'cg_up4', 'cg_up6' ] ? 1 : set?.name in [ 'cg_down4', 'cg_down6' ] ? 2 : 0;
+		if (!column)
+			continue;
+		for (let entry in set.elem ?? []) {
+			const address = entry?.elem?.val, bytes = entry?.elem?.counter?.bytes ?? 0;
+			if (type(address) != 'string' || !bytes)
+				continue;
+			if (!byAddress[address])
+				byAddress[address] = [ address, 0, 0 ];
+			byAddress[address][column] += bytes;
+		}
+	}
+	return values(byAddress);
 }
 
 const methods = {
@@ -144,6 +195,40 @@ const methods = {
 				return { state: 'sending' };
 			return result.code ? { state: 'sent', code: result.code }
 				: { state: 'failed', error: result.error ?? 'bad-reply', status: result.status ?? 0 };
+		}
+	},
+
+	// The traffic map's data: where this session's traffic went and the exit it left from.
+	// The page asks every couple of seconds while it's open and works out the rates itself.
+	map: {
+		call: function() {
+			const status = read_status();
+			const up = status.state == 'up';
+			return {
+				state: status.state ?? 'down',
+				since: +(status.since ?? 0),
+				exit: up ? (status.exit ?? '') : '',
+				version: trim(readfile('/usr/lib/cellglide/version') ?? ''),
+				geoip: geoip_state(),
+				totals: up ? map_totals() : [],
+				now: time()
+			};
+		}
+	},
+
+	// Starts a check for the location database in the background when it's due: missing, a
+	// week old, or not tried in the last few minutes after a failure; with force (Try again)
+	// whenever no check is running. Returns at once.
+	map_geoip: {
+		args: { force: false },
+		call: function(request) {
+			const geoip = geoip_state(), now = time(), force = !!request.args?.force;
+			const due = !geoip.busy && (force ||
+				((geoip.file ? now - (geoip.checked ?? 0) >= GEOIP_CHECK_EVERY : true) &&
+				!(geoip.failed && now - geoip.failed < GEOIP_RETRY_AFTER)));
+			if (due)
+				system(GEOIP_TOOL + ' update' + (force ? ' force' : '') + ' </dev/null >/dev/null 2>&1 &');
+			return { started: due, geoip: geoip };
 		}
 	},
 

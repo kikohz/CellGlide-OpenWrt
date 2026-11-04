@@ -94,6 +94,29 @@ cg_nft_ruleset() {
 	printf '}\n'
 }
 
+# An nft script that replaces table inet cellglide_map: the bytes sent to and received
+# from each remote address through the tunnel, for the web interface's traffic map. The
+# kernel counts them in sets, so nothing runs per packet but a lookup. Loaded once the
+# tunnel interface (the argument, cgtun by default) exists, which lets the rules match its
+# index instead of comparing names, and replaced on each new session so counts start over.
+# Addresses idle for 30 minutes drop out, which also keeps a full set taking new ones.
+cg_map_ruleset() {
+	local tun="${1:-$CG_TUN}" family set
+	printf 'table inet cellglide_map\ndelete table inet cellglide_map\ntable inet cellglide_map {\n'
+	for family in 4 6; do
+		for set in up down; do
+			printf '\tset cg_%s%s {\n\t\ttype ipv%s_addr\n\t\tsize 4096\n\t\tflags dynamic,timeout\n\t\ttimeout 30m\n\t\tcounter\n\t}\n' \
+				"$set" "$family" "$family"
+		done
+	done
+	# Packets that don't use the tunnel pass two integer compares.
+	printf '\tchain cg_count {\n\t\ttype filter hook forward priority filter - 1; policy accept;\n'
+	printf '\t\toif "%s" jump cg_up\n\t\tiif "%s" jump cg_down\n\t}\n' "$tun" "$tun"
+	printf '\tchain cg_up {\n\t\tupdate @cg_up4 { ip daddr }\n\t\tupdate @cg_up6 { ip6 daddr }\n\t}\n'
+	printf '\tchain cg_down {\n\t\tupdate @cg_down4 { ip saddr }\n\t\tupdate @cg_down6 { ip6 saddr }\n\t}\n'
+	printf '}\n'
+}
+
 # Reads `ip route show` output and prints each non-default destination prefix.
 cg_lan_routes() {
 	awk '$1 != "default" && $1 != "unreachable" { print $1 }'

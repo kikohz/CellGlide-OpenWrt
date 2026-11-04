@@ -215,6 +215,56 @@ table inet cellglide {
 }" "forwarder port only takes redirected DNS"
 }
 
+test_map_ruleset() {
+	assert_eq "$(cg_map_ruleset)" "table inet cellglide_map
+delete table inet cellglide_map
+table inet cellglide_map {
+	set cg_up4 {
+		type ipv4_addr
+		size 4096
+		flags dynamic,timeout
+		timeout 30m
+		counter
+	}
+	set cg_down4 {
+		type ipv4_addr
+		size 4096
+		flags dynamic,timeout
+		timeout 30m
+		counter
+	}
+	set cg_up6 {
+		type ipv6_addr
+		size 4096
+		flags dynamic,timeout
+		timeout 30m
+		counter
+	}
+	set cg_down6 {
+		type ipv6_addr
+		size 4096
+		flags dynamic,timeout
+		timeout 30m
+		counter
+	}
+	chain cg_count {
+		type filter hook forward priority filter - 1; policy accept;
+		oif \"cgtun\" jump cg_up
+		iif \"cgtun\" jump cg_down
+	}
+	chain cg_up {
+		update @cg_up4 { ip daddr }
+		update @cg_up6 { ip6 daddr }
+	}
+	chain cg_down {
+		update @cg_down4 { ip saddr }
+		update @cg_down6 { ip6 saddr }
+	}
+}" "traffic map counters"
+	assert_eq "$(cg_map_ruleset tun0 | grep -c '"tun0"')" "2" "another tunnel name"
+}
+
+
 test_normalize_mac
 test_hev_config
 test_hev_config_without_ipv6
@@ -230,3 +280,4 @@ test_leases_all
 test_status_value
 test_nft_ruleset_local_dns
 test_nft_ruleset_guard
+test_map_ruleset

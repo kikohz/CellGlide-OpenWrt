@@ -1,0 +1,188 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; -webkit-user-select: none; user-select: none; }
+  body { display: flex; align-items: center; justify-content: center; }
+  .stage { position: relative; width: min(100vw, 100vh); height: min(100vw, 100vh); }
+  .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #globe { cursor: grab; touch-action: none; }
+  #globe:active { cursor: grabbing; }
+  #flow { pointer-events: none; }
+</style>
+</head>
+<body>
+<div class="stage"><canvas id="globe"></canvas><canvas id="flow"></canvas></div>
+<script src="cobe.js"></script>
+<script>
+// The destination map's globe: COBE (MIT, bundled, offline) drawing the phone's exit and the
+// places the traffic reached through it. The page calls setData({exit, places}); dragging
+// rotates it. Places with `active: false` (nothing moving now) keep their marker but lose
+// their arc. Draws at 30 frames a second (60 while dragged), stops while setPaused(true) or
+// the page is hidden, and with Reduce Motion on draws only when something changes.
+(() => {
+  const canvas = document.getElementById('globe');
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let phi = 0, theta = 0.25, dragging = null, globe = null;
+  const ARC_HEIGHT = 0.28, ELEVATION = 0.02;
+  let state = { exit: null, places: [] };
+  let dirty = false;
+
+  const size = () => Math.round(canvas.getBoundingClientRect().width * dpr);
+  const live = () => state.places.filter(p => p.active !== false);
+  const blue = [0.25, 0.55, 1], green = [0.3, 0.85, 0.5];
+
+  function options() {
+    const markers = state.places.map(p => ({ location: [p.lat, p.lon], size: 0.025 + 0.06 * p.weight, color: blue, id: p.id }));
+    if (state.exit) markers.push({ location: [state.exit.lat, state.exit.lon], size: 0.07, color: green, id: 'exit' });
+    const arcs = state.exit ? live().map(p => ({ from: [state.exit.lat, state.exit.lon], to: [p.lat, p.lon], color: blue })) : [];
+    return { markers, arcs };
+  }
+
+  let built = 0;
+  function start() {
+    const s = size();
+    if (!s || s === built) return;
+    built = s;
+    globe?.destroy();
+    globe = createGlobe(canvas, {
+      devicePixelRatio: dpr, width: s, height: s, phi, theta,
+      dark: 1, diffuse: 1.2, mapSamples: 16000, mapBrightness: 5, mapBaseBrightness: 0.02,
+      baseColor: [0.22, 0.22, 0.26], markerColor: blue, glowColor: [0.14, 0.16, 0.22],
+      arcColor: blue, arcWidth: 0.6, arcHeight: ARC_HEIGHT, markerElevation: ELEVATION,
+      // As on the Mac: larger than COBE's 1, the glow's edge still inside the square.
+      scale: 1.1,
+      ...options(),
+    });
+    // COBE takes markers and arcs through update(); a rebuilt globe (after a resize) needs them again.
+    dirty = true;
+    wake();
+  }
+
+  // Data flowing along each arc (see drawFlow for the two directions):
+  // a comet of dots on the very curve COBE draws, using COBE's own maths (lat/lon → point,
+  // quadratic Bézier lifted by arcHeight, rotation by phi/theta, projection), hidden behind
+  // the globe the way COBE hides arcs. Busier places flow faster and brighter.
+  const flow = document.getElementById('flow');
+  const flowContext = flow.getContext('2d');
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const toPoint = (lat, lon) => {
+    const r = lat * Math.PI / 180, a = lon * Math.PI / 180 - Math.PI, o = Math.cos(r);
+    return [-o * Math.cos(a), Math.sin(r), o * Math.sin(a)];
+  };
+  function arcPoint(from, to, t) {
+    const c = 0.8 + ELEVATION;
+    const d = from.map(v => v * c), e = to.map(v => v * c);
+    const f = [from[0] + to[0], from[1] + to[1], from[2] + to[2]];
+    const n = Math.hypot(...f);
+    const o = (n > 1e-3 ? f.map(v => v / n) : [0, 1, 0]).map(v => v * (0.8 + ARC_HEIGHT + ELEVATION));
+    const b = 1 - t;
+    return [0, 1, 2].map(i => b * b * d[i] + 2 * b * t * o[i] + t * t * e[i]);
+  }
+  function project(p) {
+    const c = Math.cos(theta), d = Math.cos(phi), e = Math.sin(theta), f = Math.sin(phi);
+    // COBE's mat3(d, f*e, -f*c, 0, c, e, f, -d*e, d*c), column-major.
+    const x = d * p[0] + 0 * p[1] + f * p[2];
+    const y = f * e * p[0] + c * p[1] - d * e * p[2];
+    const z = -f * c * p[0] + e * p[1] + d * c * p[2];
+    const hidden = z < 0 && Math.hypot(x, y) < 0.8;
+    return { x: (x + 1) / 2 * flow.width, y: (1 - y) / 2 * flow.height, hidden };
+  }
+  // One stream of comets along an arc; `phase` keeps arcs from pulsing in step.
+  function stream(from, to, now, period, packets, phase, rgb, radius, brightness) {
+    for (let k = 0; k < packets; k++) {
+      const head = ((now / period) + k / packets + phase) % 1;
+      for (let tail = 0; tail < 7; tail++) {
+        const t = head - tail * 0.018;
+        if (t < 0) break;
+        const point = project(arcPoint(from, to, t));
+        if (point.hidden) continue;
+        flowContext.fillStyle = `rgba(${rgb}, ${(0.95 - tail * 0.13) * brightness})`;
+        flowContext.beginPath();
+        flowContext.arc(point.x, point.y, (radius - tail * radius * 0.11) * dpr, 0, Math.PI * 2);
+        flowContext.fill();
+      }
+    }
+  }
+  // Both ways along each arc: downloads come in from the destination to the exit, blue and
+  // brisk; uploads go out from the exit, green like its marker, slower and fainter, since
+  // most traffic is downloads.
+  let flowing = true;
+  function drawFlow(now) {
+    const w = Math.round(flow.clientWidth * dpr), h = Math.round(flow.clientHeight * dpr);
+    const places = reduceMotion || !state.exit ? [] : live();
+    if (flow.width !== w || flow.height !== h) { flow.width = w; flow.height = h; flowing = true; }
+    // An empty layer stays empty: no clearing it every frame.
+    if (!places.length && !flowing) return;
+    flowContext.clearRect(0, 0, w, h);
+    flowing = places.length > 0;
+    if (!flowing) return;
+    const exit = toPoint(state.exit.lat, state.exit.lon);
+    for (const place of places) {
+      const target = toPoint(place.lat, place.lon);
+      const period = 3200 - 1600 * place.weight;          // ms for one trip
+      stream(target, exit, now, period, 1 + Math.round(2 * place.weight), place.weight * 0.37,
+             '150, 200, 255', 2.6, 0.55 + 0.45 * place.weight);
+      stream(exit, target, now, period * 2.4, 1, place.weight * 0.61 + 0.5,
+             '120, 230, 160', 2.0, 0.35 + 0.35 * place.weight);
+    }
+  }
+
+  // Sway gently around the chosen longitude instead of spinning, so the exit and its arcs stay in front.
+  let base = 0, started = performance.now();
+  let paused = false, scheduled = false, last = 0, moved = true;
+  function wake() {
+    if (scheduled || paused || document.hidden) return;
+    scheduled = true;
+    requestAnimationFrame(frame);
+  }
+  function frame(now) {
+    scheduled = false;
+    if (paused || document.hidden) return;
+    // 30 frames a second is smooth enough for the sway; dragging gets every frame.
+    if (!dragging && now - last < 30) { wake(); return; }
+    last = now;
+    if (!dragging && !reduceMotion) phi = base + 0.32 * Math.sin((now - started) / 4200);
+    if (dirty || moved || dragging || !reduceMotion) {
+      globe?.update({ phi, theta, ...(dirty ? options() : {}) });
+      dirty = false; moved = false;
+    }
+    drawFlow(now);
+    // With Reduce Motion nothing moves on its own: the next frame waits for a change.
+    if (!reduceMotion || dragging) wake();
+  }
+  window.setPaused = value => { paused = !!value; wake(); };
+  document.addEventListener('visibilitychange', wake);
+
+  canvas.addEventListener('pointerdown', e => { dragging = { x: e.clientX, y: e.clientY, phi, theta }; canvas.setPointerCapture(e.pointerId); wake(); });
+  canvas.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    phi = dragging.phi + (e.clientX - dragging.x) / 180;
+    theta = Math.max(-1, Math.min(1, dragging.theta + (e.clientY - dragging.y) / 260));
+    wake();
+  });
+  const release = () => { if (dragging) { base = phi; started = performance.now(); } dragging = null; moved = true; wake(); };
+  canvas.addEventListener('pointerup', release);
+  canvas.addEventListener('pointercancel', release);
+
+  // Turn so a place faces the viewer, e.g. when its row is tapped.
+  window.focusPlace = (lat, lon) => { base = phi = -lon * Math.PI / 180 - Math.PI / 2; theta = lat * Math.PI / 180 * 0.6; started = performance.now(); moved = true; wake(); };
+  // Face the exit once it is known; until then, the busiest place.
+  let facing = null;
+  window.setData = data => {
+    state = data; dirty = true; wake();
+    if (data.exit && facing !== 'exit') { facing = 'exit'; window.focusPlace(data.exit.lat, data.exit.lon); }
+    else if (!data.exit && !facing && data.places.length) { facing = 'place'; window.focusPlace(data.places[0].lat, data.places[0].lon); }
+  };
+  // Rebuilding the globe is costly: once the size has settled, and only if it changed.
+  let resizing = null;
+  window.addEventListener('resize', () => { clearTimeout(resizing); resizing = setTimeout(start, 150); });
+  start();
+  wake();
+  window.webkit?.messageHandlers?.ready?.postMessage(true);
+})();
+</script>
+</body>
+</html>

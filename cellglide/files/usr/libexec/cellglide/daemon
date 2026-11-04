@@ -147,6 +147,9 @@ go_up() {
 		hev_stop
 		return 1
 	fi
+	# The traffic map's counters, fresh for this session; the map just stays empty without them.
+	cg_map_ruleset | cg_nft_apply 2>"$RUN/nft.err" ||
+		log "traffic map counters failed to load: $(head -n 3 "$RUN/nft.err" | tr '\n' ' ')"
 	"$PROBE" udp "$LOCAL_PORT"
 	case $? in
 	0) UDP=yes ;;

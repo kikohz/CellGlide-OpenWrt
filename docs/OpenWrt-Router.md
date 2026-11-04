@@ -43,9 +43,10 @@ After installing, the service is enabled and started. Check it with `cellglide s
 
 ## Web interface
 
-With `luci-app-cellglide` installed, the router's admin pages have four pages under Services › CellGlide:
+With `luci-app-cellglide` installed, the router's admin pages have five pages under Services › CellGlide:
 
 - **Status**: whether the iPhone is connected and in use, whether UDP works, and the exit IP. When the iPhone can't be used, it says why and what to do (not plugged in, not paired, not sharing).
+- **Traffic map**: the Mac's globe, showing where the chosen devices' traffic goes through the iPhone: an arc from the iPhone's exit to each region with data moving now, and a list of the regions with their traffic so far and their current speed. Counting starts over each time the iPhone comes into use; an address idle for 30 minutes drops out. The router counts bytes per address in nftables and keeps the location data (about 2 MB, the same file the apps use, checked once a week) in `/tmp`; the addresses are looked up in your browser and nothing is sent anywhere. The exit is found with `curl`, so without it the map has no arcs. Needs a recent browser (Chrome or Edge 80, Safari 16.4, Firefox 113).
 - **Devices**: the devices on the router (from the DHCP leases), each with a "through iPhone" switch and an optional name. You can also send every device through the iPhone at once, or add a device that isn't in the list by hand. Click "Save & Apply" when done. To remove a device you added by hand, clear its name, untick it and save.
 - **Settings**: the on/off switch, whether chosen devices go back to broadband or are blocked when the iPhone is unavailable, DNS, the pairing button, and under Advanced the ports and the name shown on the iPhone.
 - **Diagnostics**: sends a redacted report to CellGlide when something isn't working, or saves it as a file. See [Troubleshooting](#troubleshooting).

@@ -5,6 +5,8 @@ LUCI_TITLE:=Web interface for CellGlide (an iPhone as the internet connection)
 # listing it makes the SDK try to build the whole LuCI runtime.
 LUCI_DEPENDS:=+cellglide
 LUCI_PKGARCH:=all
+# cobe.js (the globe) ships already minified; jsmin would only risk breaking it.
+LUCI_MINIFY_JS:=0
 
 PKG_VERSION:=0.2.1
 PKG_RELEASE:=1

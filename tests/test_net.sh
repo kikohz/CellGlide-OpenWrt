@@ -60,7 +60,8 @@ test_tunnel_routes() {
 	assert_eq "$(recorded cg_tunnel_up)" "ip -4 route replace default dev cgtun table 1986
 ip -6 route replace default dev cgtun table 1986" "tunnel up"
 	assert_eq "$(recorded cg_tunnel_down)" "ip -4 route del default dev cgtun table 1986
-ip -6 route del default dev cgtun table 1986" "tunnel down"
+ip -6 route del default dev cgtun table 1986
+nft delete table inet cellglide_map" "tunnel down"
 }
 
 test_teardown() {
@@ -68,7 +69,8 @@ test_teardown() {
 ip -4 route flush table 1986
 ip -6 rule del priority 1986
 ip -6 route flush table 1986
-nft delete table inet cellglide" "teardown"
+nft delete table inet cellglide
+nft delete table inet cellglide_map" "teardown"
 }
 
 

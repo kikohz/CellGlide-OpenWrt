@@ -55,6 +55,7 @@ cg_tunnel_down() {
 	for family in 4 6; do
 		cg_quiet ip -"$family" route del default dev "$CG_TUN" table "$CG_TABLE"
 	done
+	cg_quiet nft delete table inet cellglide_map
 }
 
 cg_teardown() {
@@ -64,6 +65,7 @@ cg_teardown() {
 		cg_quiet ip -"$family" route flush table "$CG_TABLE"
 	done
 	cg_quiet nft delete table inet cellglide
+	cg_quiet nft delete table inet cellglide_map
 }
 
 # Reads an nft script on stdin and loads it atomically.

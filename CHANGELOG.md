@@ -2,9 +2,11 @@
 
 ## Unreleased
 
+- Traffic map, as on the Mac: Services › CellGlide › Traffic map shows on a globe where the chosen devices' traffic goes through the iPhone, with an arc from the iPhone's exit to each region moving data now, and lists the regions with their traffic and current speed. The kernel counts bytes per address (nftables sets, only while the iPhone is in use); the addresses are located in the browser with the apps' location data, which the router downloads to `/tmp`. The globe draws at 30 frames a second and stops while it's off screen or the tab is hidden.
 - Diagnostics, as on the Mac: Services › CellGlide › Diagnostics sends CellGlide's status, settings, log and network checks to CellGlide and gives you a report code, or saves them as a file. Names, MAC, web and email addresses are removed and IP addresses shortened on the router before anything is sent. From the command line: `cellglide diag` and `cellglide diag send`.
 - Fixed: opening the Settings page could leave every LuCI page on "Loading view…" while the iPhone was slow to answer, because checking the pairing held up rpcd. It now uses what the service last found.
 
+- 和 Mac 一样的流量地图：“服务 › CellGlide › 流量地图”用地球显示被选设备经 iPhone 的流量去了哪里，从 iPhone 的出口到每个正在传数据的地区画弧线，并列出各地区的流量和当前速度。由内核按地址计数（nftables 集合，只在使用 iPhone 时计数）；地址用 App 的位置数据在浏览器里定位，位置数据由路由器下载到 `/tmp`。地球每秒画 30 帧，滚出屏幕或切到别的标签页时停止。
 - 和 Mac 一样的诊断功能：“服务 › CellGlide › 诊断”可以把 CellGlide 的状态、设置、日志和网络检查发给 CellGlide 并给出报告编号，也可以存成文件。发送前先在路由器上去掉名字、MAC 地址、网址和邮箱，IP 地址只保留第一段。命令行：`cellglide diag` 和 `cellglide diag send`。
 - 修复：iPhone 响应慢时，打开设置页可能让所有 LuCI 页面停在“加载视图中”，因为检查配对会卡住 rpcd。现在改用后台服务最近一次的检查结果。
 

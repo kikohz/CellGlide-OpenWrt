@@ -410,3 +410,61 @@ msgstr "还在发送中。请稍后再试，或者用“导出”把文件发给
 
 msgid "Diagnostics"
 msgstr "诊断"
+
+msgid "Traffic map"
+msgstr "流量地图"
+
+msgid "Where the chosen devices' traffic goes through the iPhone, by region. The addresses are located in this browser; nothing is sent anywhere."
+msgstr "被选设备经 iPhone 发出的流量去了哪里，按地区显示。地址在这个浏览器里定位，不会发送到任何地方。"
+
+msgid "Leaving through the iPhone in %s, since %s."
+msgstr "从 iPhone 在 %s 的出口出去，从 %s 开始。"
+
+msgid "The iPhone's exit couldn't be located."
+msgstr "无法定位 iPhone 的出口。"
+
+msgid "The iPhone's exit isn't known: the router finds it with curl, which isn't installed."
+msgstr "不知道 iPhone 的出口：路由器要用 curl 查出口，但没有安装 curl。"
+
+msgid "This browser can't unpack the location data. Use a recent Chrome, Edge, Safari or Firefox."
+msgstr "这个浏览器无法解压位置数据。请使用较新的 Chrome、Edge、Safari 或 Firefox。"
+
+msgid "The location data couldn't be loaded."
+msgstr "无法载入位置数据。"
+
+msgid "Try again"
+msgstr "重试"
+
+msgid "Downloading the location data (about 2 MB, once a month)…"
+msgstr "正在下载位置数据（约 2 MB，每月一次）…"
+
+msgid "The router couldn't download the location data. Check that it is online."
+msgstr "路由器无法下载位置数据。请检查它是否联网。"
+
+msgid "Loading the location data…"
+msgstr "正在载入位置数据…"
+
+msgid "The map shows traffic while the chosen devices use the iPhone."
+msgstr "被选设备使用 iPhone 上网时，地图才会显示流量。"
+
+msgid "No traffic through the iPhone yet."
+msgstr "还没有经过 iPhone 的流量。"
+
+msgid "Region"
+msgstr "地区"
+
+msgid "Total"
+msgstr "总计"
+
+msgid "Now"
+msgstr "当前"
+
+msgid "busiest %s"
+msgstr "最多的是 %s"
+
+msgid "Turn the globe to %s"
+msgstr "把地球转到 %s"
+
+msgid "%d address"
+msgid_plural "%d addresses"
+msgstr[0] "%d 个地址"

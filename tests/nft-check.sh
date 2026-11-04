@@ -23,4 +23,11 @@ check 1.1.1.1 2606:4700:4700::1111 local:5354 "" aa:bb:cc:dd:ee:ff
 check 1.1.1.1 2606:4700:4700::1111 local:5354 "" all
 check 1.1.1.1 2606:4700:4700::1111 local:5354 5354 aa:bb:cc:dd:ee:ff
 check 1.1.1.1 2606:4700:4700::1111 0 5354 all
+# The tunnel must exist; lo stands in for cgtun.
+if cg_map_ruleset lo | nft -c -f -; then
+	echo "ok: map counters"
+else
+	echo "FAIL: map counters"
+	status=1
+fi
 exit "$status"

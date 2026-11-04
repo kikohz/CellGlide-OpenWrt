@@ -1,0 +1,146 @@
+#!/usr/bin/ucode
+// Keeps the traffic map's IP location database, the same file the Mac and iPhone apps use
+// (geoip.cellglide.com, monthly, from DB-IP's free "IP to City Lite", CC BY 4.0), in
+// /tmp/cellglide-geoip. The web interface downloads it from the router (luci-static's
+// cellglide/geoip links to that folder) and looks addresses up in the browser, so the
+// router only stores the compressed file: it never unpacks or searches it.
+//   geoip update [force]   checks for a newer file at most once a week; prints the state
+//   geoip state            prints the state: {month, file, checked} once there is a file,
+//                          {busy} while a check runs, {failed} after one that didn't work
+'use strict';
+
+import { readfile, writefile, rename, unlink, mkdir, rmdir, stat, lsdir, popen, access } from 'fs';
+
+const DIR = '/tmp/cellglide-geoip';
+const SOURCE = 'https://geoip.cellglide.com/';
+const CHECK_EVERY = 7 * 24 * 3600;
+// After a failed check (offline, say), the page may ask again this much later.
+const RETRY_AFTER = 600;
+// A check that has held the lock this long died without letting go of it.
+const STALE_LOCK = 300;
+const MAX_BYTES = 20 * 1024 * 1024;
+
+function version() {
+	return trim(readfile('/usr/lib/cellglide/version') ?? '') || 'unknown';
+}
+
+function run(command) {
+	const fd = popen(command + ' 2>/dev/null');
+	if (!fd)
+		return { code: -1, output: '' };
+	const output = fd.read('all');
+	return { code: fd.close(), output: trim(output ?? '') };
+}
+
+// Saves URL to FILE with curl when it's installed, else uclient-fetch (in every image).
+function fetch(url, file, timeout) {
+	const agent = 'CellGlide-OpenWrt/' + version();
+	if (access('/usr/bin/curl'))
+		return run(sprintf("curl -sSf -m %d -A '%s' -o '%s' '%s'", timeout, agent, file, url)).code == 0;
+	if (access('/bin/uclient-fetch'))
+		return run(sprintf("uclient-fetch -q -T %d -U '%s' -O '%s' '%s'", timeout, agent, file, url)).code == 0;
+	return false;
+}
+
+function read_json(file) {
+	try { return json(readfile(file) ?? 'null'); } catch (e) { return null; }
+}
+
+function save_state(state) {
+	writefile(DIR + '/state.tmp', sprintf('%J', state));
+	rename(DIR + '/state.tmp', DIR + '/state.json');
+}
+
+// The state the web interface sees; a file that went missing (/tmp was cleared) counts as none.
+function state() {
+	const saved = read_json(DIR + '/state.json');
+	const busy = stat(DIR + '/lock');
+	const result = {};
+	if (saved?.file && stat(DIR + '/' + saved.file)) {
+		result.month = saved.month;
+		result.file = saved.file;
+		result.checked = saved.checked;
+	}
+	if (busy && time() - busy.mtime < STALE_LOCK)
+		result.busy = true;
+	else if (saved?.failed)
+		result.failed = saved.failed;
+	return result;
+}
+
+function valid(manifest) {
+	return type(manifest?.month) == 'int' && manifest.month > 200000 &&
+		match(manifest.file, /^geoip-[0-9]{6}\.bin\.z$/) &&
+		match(manifest.sha256, /^[0-9a-fA-F]{64}$/) &&
+		type(manifest.bytes) == 'int' && manifest.bytes > 0 && manifest.bytes <= MAX_BYTES;
+}
+
+function remove_old(keep) {
+	for (let name in lsdir(DIR) ?? [])
+		if (match(name, /^geoip-[0-9]{6}\.bin\.z$/) && name != keep)
+			unlink(DIR + '/' + name);
+}
+
+// One check: the manifest, then the file it names when it's newer than the one here.
+// Returns the saved state's new fields, or null when it didn't work.
+function check(saved) {
+	if (!fetch(SOURCE + 'latest.json', DIR + '/latest.tmp', 15))
+		return null;
+	const manifest = read_json(DIR + '/latest.tmp');
+	unlink(DIR + '/latest.tmp');
+	if (!valid(manifest))
+		return null;
+	if (saved?.file && saved.month >= manifest.month && stat(DIR + '/' + saved.file))
+		return { month: saved.month, file: saved.file };
+
+	const part = DIR + '/download.tmp';
+	const ok = fetch(SOURCE + manifest.file, part, 120) &&
+		stat(part)?.size == manifest.bytes &&
+		lc(split(run(sprintf("sha256sum '%s'", part)).output, ' ')[0] ?? '') == lc(manifest.sha256);
+	if (!ok) {
+		unlink(part);
+		return null;
+	}
+	rename(part, DIR + '/' + manifest.file);
+	remove_old(manifest.file);
+	return { month: manifest.month, file: manifest.file };
+}
+
+function update(force) {
+	mkdir(DIR, 0755);
+	const saved = read_json(DIR + '/state.json');
+	const now = time();
+	const current = state();
+	if (!force && current.file && now - (current.checked ?? 0) < CHECK_EVERY)
+		return current;
+	if (!force && current.failed && now - current.failed < RETRY_AFTER)
+		return current;
+
+	// One check at a time: several open pages, or a page reloaded mid-download.
+	const lock = stat(DIR + '/lock');
+	if (lock && now - lock.mtime >= STALE_LOCK)
+		rmdir(DIR + '/lock');
+	if (!mkdir(DIR + '/lock', 0700))
+		return state();
+
+	const found = check(saved);
+	if (found)
+		save_state({ month: found.month, file: found.file, checked: now });
+	else
+		// What was here before stays usable.
+		save_state({ month: saved?.month, file: saved?.file, checked: saved?.checked, failed: now });
+	rmdir(DIR + '/lock');
+	return state();
+}
+
+switch (ARGV[0]) {
+case 'update':
+	print(sprintf('%J', update(ARGV[1] == 'force')), '\n');
+	break;
+case 'state':
+	print(sprintf('%J', state()), '\n');
+	break;
+default:
+	warn('usage: geoip update [force] | geoip state\n');
+	exit(2);
+}

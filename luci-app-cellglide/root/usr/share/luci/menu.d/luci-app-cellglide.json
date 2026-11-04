@@ -18,6 +18,14 @@
 			"path": "cellglide/status"
 		}
 	},
+	"admin/services/cellglide/map": {
+		"title": "Traffic map",
+		"order": 15,
+		"action": {
+			"type": "view",
+			"path": "cellglide/map"
+		}
+	},
 	"admin/services/cellglide/devices": {
 		"title": "Devices",
 		"order": 20,

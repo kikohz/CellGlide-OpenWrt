@@ -409,3 +409,62 @@ msgstr ""
 
 msgid "Diagnostics"
 msgstr ""
+
+msgid "Traffic map"
+msgstr ""
+
+msgid "Where the chosen devices' traffic goes through the iPhone, by region. The addresses are located in this browser; nothing is sent anywhere."
+msgstr ""
+
+msgid "Leaving through the iPhone in %s, since %s."
+msgstr ""
+
+msgid "The iPhone's exit couldn't be located."
+msgstr ""
+
+msgid "The iPhone's exit isn't known: the router finds it with curl, which isn't installed."
+msgstr ""
+
+msgid "This browser can't unpack the location data. Use a recent Chrome, Edge, Safari or Firefox."
+msgstr ""
+
+msgid "The location data couldn't be loaded."
+msgstr ""
+
+msgid "Try again"
+msgstr ""
+
+msgid "Downloading the location data (about 2 MB, once a month)…"
+msgstr ""
+
+msgid "The router couldn't download the location data. Check that it is online."
+msgstr ""
+
+msgid "Loading the location data…"
+msgstr ""
+
+msgid "The map shows traffic while the chosen devices use the iPhone."
+msgstr ""
+
+msgid "No traffic through the iPhone yet."
+msgstr ""
+
+msgid "Region"
+msgstr ""
+
+msgid "Total"
+msgstr ""
+
+msgid "Now"
+msgstr ""
+
+msgid "busiest %s"
+msgstr ""
+
+msgid "Turn the globe to %s"
+msgstr ""
+
+msgid "%d address"
+msgid_plural "%d addresses"
+msgstr[0] ""
+msgstr[1] ""
