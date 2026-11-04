@@ -10,7 +10,7 @@
 		},
 		"write": {
 			"ubus": {
-				"luci.cellglide": [ "pair", "start" ]
+				"luci.cellglide": [ "pair", "start", "diag", "diag_send", "diag_result" ]
 			},
 			"uci": [ "cellglide" ]
 		}

@@ -1,0 +1,336 @@
+#!/usr/bin/ucode
+// The diagnostics report a user can send us: the same format as the Mac and Linux apps'
+// (format 1), with platform "openwrt". Redacted here, on the router, before anything
+// leaves it, and only sent when the user asks.
+//   diag bundle day|week [CONTACT]   prints the report; CONTACT is a JSON file {email, note}
+//   diag send REPORT                 uploads it and prints {"code":"CG-…"} or {"error":"…"}
+'use strict';
+
+import { readfile, popen, access } from 'fs';
+import { cursor } from 'uci';
+
+const ENDPOINT = 'https://diag.cellglide.com/v1/reports';
+const MAX_BYTES = 1000000;
+const MAX_LOG_LINES = 2000;
+const MAX_LINE = 2000;
+const MAX_ENVIRONMENT_VALUE = 2000;
+const MAX_NOTE = 2000;
+const MAX_EMAIL = 200;
+
+// Hosts the apps themselves contact for checks; naming them helps and reveals nothing.
+const KEPT_HOSTS = [
+	'cloudflare-dns.com', 'one.one.one.one', 'www.cloudflare.com', 'dns.google',
+	'www.google.com', 'www.apple.com', 'captive.apple.com', 'cellglide.com',
+	'diag.cellglide.com', 'dns.alidns.com', 'doh.pub', 'doh.opendns.com', 'dns.quad9.net',
+	'speed.cloudflare.com', 'leakcheck.cellglide.com', 'openwrt.org', 'downloads.openwrt.org'
+];
+
+// Last labels that make a dotted word a file, a syslog level or a UCI option, not a host.
+const NOT_HOSTS = [
+	'sh', 'uc', 'js', 'json', 'yml', 'yaml', 'nft', 'conf', 'log', 'txt', 'lmo', 'po', 'ipk',
+	'apk', 'so', 'ko', 'lua', 'html', 'pid', 'sock', 'tmp', 'err', 'emerg', 'alert', 'crit',
+	'warn', 'warning', 'notice', 'info', 'debug'
+];
+// First labels of UCI paths (cellglide.main.dns) and syslog facilities (daemon.notice).
+const NOT_HOST_STARTS = [
+	'cellglide', 'luci', 'network', 'system', 'dhcp', 'firewall', 'wireless', 'daemon', 'kern',
+	'user', 'syslog', 'authpriv', 'auth', 'cron', 'local0', 'local7'
+];
+
+function version() {
+	return trim(readfile('/usr/lib/cellglide/version') ?? '') || 'unknown';
+}
+
+function run(command) {
+	const fd = popen(command + ' 2>&1');
+	if (!fd)
+		return '';
+	const output = fd.read('all');
+	fd.close();
+	return trim(output ?? '');
+}
+
+// Cuts to at most `limit` bytes without splitting a UTF-8 character.
+function cut(text, limit) {
+	if (length(text) <= limit)
+		return text;
+	let end = limit;
+	while (end > 0 && (ord(text, end) & 0xc0) == 0x80)
+		end--;
+	return substr(text, 0, end);
+}
+
+// The last `limit` bytes, starting on a whole UTF-8 character.
+function tail(text, limit) {
+	if (length(text) <= limit)
+		return text;
+	let start = length(text) - limit;
+	while (start < length(text) && (ord(text, start) & 0xc0) == 0x80)
+		start++;
+	return substr(text, start);
+}
+
+function iso(epoch) {
+	const t = gmtime(epoch);
+	return sprintf('%04d-%02d-%02dT%02d:%02d:%02dZ', t.year, t.mon, t.mday, t.hour, t.min, t.sec);
+}
+
+function escape_regex(text) {
+	return replace(text, /[][\\^$.|?*+(){}]/g, (c) => '\\' + c);
+}
+
+// Names that say who or where: this router's, the iPhone's, and the LAN devices'. Each maps
+// to a neutral word; very short or generic names are left alone.
+function names() {
+	const uci = cursor();
+	const found = {};
+	const add = (name, as) => {
+		name = trim(name ?? '');
+		if (length(name) < 3 || lc(name) in [ 'openwrt', 'cellglide', 'iphone', 'localhost', 'router', 'device', 'unknown' ])
+			return;
+		if (!exists(found, name))
+			found[name] = as;
+	};
+	add(uci.get_first('system', 'system', 'hostname'), 'Router');
+	add(uci.get('cellglide', 'main', 'name'), 'Router');
+	add(match(readfile('/var/run/cellglide/status') ?? '', /name='([^']*)'/)?.[1], 'iPhone');
+	uci.foreach('cellglide', 'device', (s) => add(s.name, 'Device'));
+	uci.foreach('cellglide', 'alias', (s) => add(s.name, 'Device'));
+	uci.foreach('dhcp', 'host', (s) => add(s.name, 'Device'));
+	// dnsmasq leases: expiry MAC IP hostname client-id
+	for (let line in split(readfile('/tmp/dhcp.leases') ?? '', '\n')) {
+		const host = split(line, ' ')[3];
+		if (host != null && host != '*')
+			add(host, 'Device');
+	}
+	return found;
+}
+
+function redact_names(text, found) {
+	// Longest first, so "Alice's iPhone 15" goes before "Alice's iPhone".
+	const list = sort(keys(found), (a, b) => length(b) - length(a));
+	for (let name in list) {
+		// A name ending in a letter or digit only matches whole, not inside a longer word.
+		const pattern = regexp('(^|[^A-Za-z0-9])(' + escape_regex(name) + ')([^A-Za-z0-9]|$)', 'gi');
+		text = replace(text, pattern, (m, before, n, after) => before + found[name] + after);
+	}
+	return text;
+}
+
+function redact_ipv6(address) {
+	const colons = length(match(address, /:/g) ?? []);
+	if (index(address, '::') < 0 && colons < 5)
+		return address;
+	if (address == '::')
+		return address;
+	const first = split(address, ':')[0];
+	if (!length(first))
+		return '<IPv6>';
+	return first + '::/16';
+}
+
+function redact_host(host) {
+	const lower = lc(host);
+	if (lower in KEPT_HOSTS)
+		return host;
+	const labels = split(lower, '.');
+	if (labels[length(labels) - 1] in NOT_HOSTS || labels[0] in NOT_HOST_STARTS)
+		return host;
+	// Reverse-DNS identifiers (com.kikohz.cellglide) are not hosts.
+	if (length(labels) >= 3 && labels[0] in [ 'com', 'org', 'net', 'io' ])
+		return host;
+	return '<域名>';
+}
+
+// Takes what could identify a person or place out of a line: names, web addresses, email
+// addresses, UDIDs, MAC addresses, IP addresses (kept to their first part) and host names.
+// The same placeholders as the Mac and Linux apps, so reports read alike.
+function redact(text, found) {
+	text = redact_names(text, found);
+	text = replace(text, /[A-Za-z][A-Za-z0-9+.-]*:\/\/[^][:space:]"'<>)]+/g, (url) => {
+		const host = lc(match(url, /^[^:]+:\/\/([^@\/]*@)?([^:\/?#]+)/)?.[2] ?? '');
+		return host in KEPT_HOSTS ? url : '<网址>';
+	});
+	text = replace(text, /[^][:space:]@<>"'(),;]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+/g, '<邮箱>');
+	// Device UDIDs: 8-16 hex (newer phones) or 40 hex (older ones). Machine IDs: 32 hex.
+	text = replace(text, /(^|[^0-9A-Za-z])([0-9A-Fa-f]{8}-[0-9A-Fa-f]{16}|[0-9A-Fa-f]{40}|[0-9A-Fa-f]{32})/g,
+		(m, before, id) => before + '…' + substr(id, -4));
+	text = replace(text, /(^|[^0-9A-Za-z:-])([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}/g,
+		(m, before) => before + '<MAC>');
+	text = replace(text, /(^|[^0-9A-Za-z.])([0-9]{1,3})\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/g,
+		(m, before, first) => before + first + '.x.x.x');
+	text = replace(text, /(^|[^0-9A-Za-z_:])([0-9A-Fa-f]{0,4}(:[0-9A-Fa-f]{0,4}){2,8})(%[A-Za-z0-9_.-]+)?(\/[0-9]{1,3})?/g,
+		(m, before, address, group, zone, prefix) => {
+			const redacted = redact_ipv6(address);
+			return before + redacted + (redacted == address ? (zone ?? '') + (prefix ?? '') : '');
+		});
+	// System paths are left alone: a dotted word right after a slash is a file name.
+	text = replace(text, /(^|[^A-Za-z0-9_.@\/-])(([A-Za-z0-9-]+\.)+[A-Za-z]{2,63})/g,
+		(m, before, host) => before + redact_host(host));
+	return text;
+}
+
+function clean_line(line, found) {
+	return redact(length(line) > MAX_LINE ? cut(line, MAX_LINE) + '…' : line, found);
+}
+
+function clean_block(text, found) {
+	return tail(join('\n', map(split(text, '\n'), (l) => clean_line(l, found))), MAX_ENVIRONMENT_VALUE);
+}
+
+const MONTHS = { Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12 };
+
+// CellGlide's lines from the system log since `from`. The log lives in memory: it starts
+// over when the router restarts and on a busy router holds less than a week.
+function log_lines(from) {
+	const lines = [];
+	for (let line in split(run('logread'), '\n')) {
+		const lower = lc(line);
+		if (!match(lower, /cellglide|iproxy|usbmuxd|hev|idevice|lockdown|cgtun|ipheth|apple|iphone/))
+			continue;
+		// "Wed Nov  4 05:56:50 2026 daemon.notice cellglide: ..."
+		const d = match(line, /^[A-Za-z]{3} ([A-Za-z]{3}) +([0-9]+) ([0-9]+):([0-9]+):([0-9]+) ([0-9]{4}) /);
+		if (d && MONTHS[d[1]]) {
+			const at = timelocal({ year: +d[6], mon: MONTHS[d[1]], mday: +d[2], hour: +d[3], min: +d[4], sec: +d[5] });
+			if (at != null && at < from)
+				continue;
+		}
+		push(lines, line);
+	}
+	return lines;
+}
+
+function release() {
+	const r = {};
+	for (let line in split(readfile('/etc/openwrt_release') ?? '', '\n')) {
+		const m = match(line, /^([A-Z_]+)='?([^']*)'?$/);
+		if (m)
+			r[m[1]] = m[2];
+	}
+	return r;
+}
+
+function environment() {
+	const uci = cursor();
+	const packages = access('/usr/bin/apk')
+		? run('apk info -v 2>/dev/null | grep -E "cellglide|hev|kmod-tun|usbmuxd|imobiledevice|ucode|uclient|curl|ustream"')
+		: run('opkg list-installed | grep -E "cellglide|hev|kmod-tun|usbmuxd|imobiledevice|ucode|uclient|curl|ustream"');
+	return {
+		'Firewall': run('nft list table inet cellglide'),
+		'IPv6': 'all.disable_ipv6=' + trim(readfile('/proc/sys/net/ipv6/conf/all/disable_ipv6') ?? '?') +
+			' default.disable_ipv6=' + trim(readfile('/proc/sys/net/ipv6/conf/default/disable_ipv6') ?? '?'),
+		'Kernel': run('uname -a'),
+		'LuCI': 'ubuspath=' + (uci.get('luci', 'main', 'ubuspath') ?? '(default)') +
+			'\n' + trim(readfile('/usr/lib/lua/luci/version.lua') ?? readfile('/usr/share/ucode/luci/version.uc') ?? ''),
+		'Packages': packages,
+		'Processes': run('ps w | grep -E "iproxy|hev-socks5|usbmuxd|cellglide" | grep -v grep'),
+		'Routing': run('ip rule; ip -4 route show table 1986; ip -6 route show table 1986; ip addr show cgtun'),
+		'Service': run('ubus call service list \'{"name":"cellglide"}\''),
+		'Settings': run('uci show cellglide'),
+		'Status': run('cellglide status'),
+		'TUN': run('ls -l /dev/net/tun; grep -w tun /proc/modules'),
+		'Upload': (access('/usr/bin/curl') ? 'curl ' : '') + (access('/bin/uclient-fetch') ? 'uclient-fetch' : ''),
+		'USB': run('for d in /sys/bus/usb/devices/*; do [ "$(cat $d/idVendor 2>/dev/null)" = 05ac ] && echo "$(cat $d/product) $(cat $d/idProduct) $(cat $d/speed)Mbps"; done')
+	};
+}
+
+function bundle(range, contact) {
+	const now = time();
+	const from = now - (range == 'week' ? 7 * 86400 : 86400);
+	const found = names();
+	const r = release();
+	let board = null;
+	try { board = json(run('ubus call system board')); } catch (e) { board = null; }
+
+	const env = {};
+	const raw = environment();
+	for (let key in sort(keys(raw)))
+		env[key] = clean_block(raw[key], found);
+
+	let log = log_lines(from);
+	log = map(slice(log, length(log) > MAX_LOG_LINES ? length(log) - MAX_LOG_LINES : 0), (l) => clean_line(l, found));
+
+	// Keys in sorted order, as the other apps write them.
+	const report = {
+		app: version(),
+		createdAt: iso(now),
+		device: board?.model ?? 'unknown',
+		environment: env,
+		format: 1,
+		from: iso(from),
+		log: log,
+		os: r.DISTRIB_DESCRIPTION ?? ('OpenWrt ' + (r.DISTRIB_RELEASE ?? '?')),
+		platform: 'openwrt',
+		to: iso(now)
+	};
+	// The contact is the user's own words, sent on purpose: capped, not redacted.
+	const email = trim(contact?.email ?? ''), note = trim(contact?.note ?? '');
+	if (length(email) || length(note)) {
+		const c = {};
+		if (length(email))
+			c.email = cut(email, MAX_EMAIL);
+		if (length(note))
+			c.note = cut(note, MAX_NOTE);
+		report.contact = c;
+	}
+
+	// Oldest log lines go first until the whole report fits.
+	while (length(sprintf('%J', report)) > MAX_BYTES && length(report.log))
+		report.log = length(report.log) > 100 ? slice(report.log, int(length(report.log) / 4)) : [];
+	return report;
+}
+
+// Uploads with curl when it's installed, else with uclient-fetch (in every OpenWrt image).
+function send(file) {
+	const agent = 'CellGlide-OpenWrt/' + version();
+	let status, body;
+	if (access('/usr/bin/curl')) {
+		const out = run(sprintf("curl -sS -m 30 -A '%s' -H 'Content-Type: application/json' --data-binary @'%s' -w '\\n%%{http_code}' %s",
+			agent, file, ENDPOINT));
+		const at = rindex(out, '\n');
+		status = +substr(out, at + 1);
+		body = at < 0 ? '' : substr(out, 0, at);
+	}
+	else if (access('/bin/uclient-fetch')) {
+		const out = run(sprintf("uclient-fetch -q -T 30 -U '%s' --post-file='%s' -O - %s", agent, file, ENDPOINT));
+		// uclient-fetch prints only "HTTP error 429" for a refused request.
+		const refused = match(out, /HTTP error ([0-9]+)/);
+		status = refused ? +refused[1] : (index(out, '"code"') >= 0 ? 200 : 0);
+		body = out;
+	}
+	else
+		return { error: 'no-client' };
+
+	if (status == 429)
+		return { error: 'too-frequent' };
+	if (!status)
+		return { error: 'offline' };
+	if (status != 200)
+		return { error: 'rejected', status: status };
+	const code = match(body, /"code" *: *"(CG-[A-Z0-9]+)"/);
+	return code ? { code: code[1] } : { error: 'bad-reply' };
+}
+
+switch (ARGV[0]) {
+case 'bundle': {
+	let contact = null;
+	if (ARGV[2]) {
+		try { contact = json(readfile(ARGV[2]) ?? '{}'); } catch (e) { contact = null; }
+	}
+	print(sprintf('%J', bundle(ARGV[1] == 'week' ? 'week' : 'day', contact)), '\n');
+	break;
+}
+case 'send': {
+	const report = readfile(ARGV[1] ?? '');
+	if (!report || length(report) > MAX_BYTES) {
+		print(sprintf('%J', { error: 'rejected', status: 413 }), '\n');
+		exit(1);
+	}
+	const result = send(ARGV[1]);
+	print(sprintf('%J', result), '\n');
+	exit(result.code ? 0 : 1);
+}
+default:
+	warn('usage: diag bundle day|week [CONTACT] | diag send REPORT\n');
+	exit(2);
+}

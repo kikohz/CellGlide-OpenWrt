@@ -322,3 +322,90 @@ msgid "%d chosen device"
 msgid_plural "%d chosen devices"
 msgstr[0] ""
 msgstr[1] ""
+
+msgid "%d bytes"
+msgstr ""
+
+msgid "%d KB"
+msgstr ""
+
+msgid "Too many reports from this network. Try again in a minute."
+msgstr ""
+
+msgid "Couldn't reach the CellGlide server. Check that this router is online, or use Export and send us the file."
+msgstr ""
+
+msgid "This router can't send over HTTPS: neither curl nor uclient-fetch is installed. Use Export and send us the file."
+msgstr ""
+
+msgid "Couldn't send. Try again later, or use Export and send us the file."
+msgstr ""
+
+msgid "Last 24 hours"
+msgstr ""
+
+msgid "Last 7 days"
+msgstr ""
+
+msgid "Optional"
+msgstr ""
+
+msgid "Send"
+msgstr ""
+
+msgid "Export log"
+msgstr ""
+
+msgid "Saves the last 24 hours as a file on this computer, redacted the same way as a report you send."
+msgstr ""
+
+msgid "Export…"
+msgstr ""
+
+msgid "Send diagnostics"
+msgstr ""
+
+msgid "This sends CellGlide's status, settings and log, with device names and web addresses removed and IP addresses shortened to their first part. Nothing is uploaded until you click Send."
+msgstr ""
+
+msgid "Time range"
+msgstr ""
+
+msgid "The router keeps its log in memory: it starts over when the router restarts, and usually holds much less than 7 days."
+msgstr ""
+
+msgid "Email"
+msgstr ""
+
+msgid "What happened"
+msgstr ""
+
+msgid "View contents…"
+msgstr ""
+
+msgid "The report could not be made. Check the system log for cellglide."
+msgstr ""
+
+msgid "What will be sent"
+msgstr ""
+
+msgid "%s in total."
+msgstr ""
+
+msgid "Close"
+msgstr ""
+
+msgid "Sending…"
+msgstr ""
+
+msgid "Sent. Report code: %s"
+msgstr ""
+
+msgid "Just send us this code."
+msgstr ""
+
+msgid "Still sending. Try again later, or use Export and send us the file."
+msgstr ""
+
+msgid "Diagnostics"
+msgstr ""

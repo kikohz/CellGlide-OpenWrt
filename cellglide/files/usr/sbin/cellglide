@@ -17,6 +17,8 @@ Usage: cellglide <command>
   remove all         Go back to only the devices added one by one
   list               Show devices on the LAN; chosen ones are marked
   status             Show whether the iPhone is in use
+  diag [week]        Print the diagnostics report (last 24 hours, or 7 days)
+  diag send [week]   Send it to CellGlide and print the report code
 EOF
 	exit 1
 }
@@ -158,6 +160,23 @@ list)
 	;;
 status)
 	show_status
+	;;
+diag)
+	if [ "$2" != send ]; then
+		exec /usr/libexec/cellglide/diag bundle "${2:-day}"
+	fi
+	report=/tmp/cellglide-diagnostics.json
+	/usr/libexec/cellglide/diag bundle "${3:-day}" >"$report" || exit 1
+	result=$(/usr/libexec/cellglide/diag send "$report")
+	rc=$?
+	case "$result" in
+	*'"code"'*) echo "Sent. Report code: $(echo "$result" | sed -n 's/.*"code": *"\([^"]*\)".*/\1/p')" ;;
+	*too-frequent*) echo "Too many reports from this network. Try again in a minute." ;;
+	*offline*) echo "Couldn't reach the CellGlide server. The report is in $report; send us that file." ;;
+	*no-client*) echo "Neither curl nor uclient-fetch is installed. The report is in $report; send us that file." ;;
+	*) echo "Couldn't send ($result). The report is in $report; send us that file." ;;
+	esac
+	exit "$rc"
 	;;
 *)
 	usage

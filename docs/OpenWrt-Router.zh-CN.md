@@ -43,11 +43,12 @@ opkg install ./cellglide_0.2.1-r1_all.ipk ./luci-app-cellglide_0.2.1-r1_all.ipk
 
 ## 网页界面
 
-装了 `luci-app-cellglide` 的话，打开路由器后台，在“服务 › CellGlide”里有三个页面：
+装了 `luci-app-cellglide` 的话，打开路由器后台，在“服务 › CellGlide”里有四个页面：
 
 - **状态**：手机是否连上、是否在用、UDP 是否正常、出口 IP；不可用时写明原因和该怎么做（没插手机、没配对、没在共享）。
 - **设备**：路由器上的设备列表（来自 DHCP 租约），每台一个“走手机”开关，可以写备注；也可以一键让所有设备走手机，或者手动添加不在列表里的设备。改完点“保存并应用”。要删掉手动添加的设备，清空它的名字、取消勾选，再保存。
 - **设置**：启用开关、手机不可用时回到宽带还是断网、DNS、配对按钮，以及高级里的端口和“在 iPhone 上显示的名字”。
+- **诊断**：出问题时把脱敏后的报告发给 CellGlide，或者存成文件。见[排查问题](#排查问题)。
 
 后面讲的命令行操作，在网页里都能做。
 
@@ -171,15 +172,14 @@ uci commit luci
 
 想改回来，把它设回 `/ubus/`。这是 GL.iNet 固件上整个 LuCI 的设置，CellGlide 不会去改它。问题来自 GL.iNet MT3000、4.11.0-op25 固件（OpenWrt 25.12.6）的反馈。
 
-反馈问题时，请附上这些命令的输出：
+**反馈问题**：打开“服务 › CellGlide › 诊断”，写一下发生了什么（想收到回复的话留个邮箱），点“发送”。页面会给出一个报告编号，比如 `CG-7K3P9`，把这个编号发给我们就行。“查看内容…”能看到发送的全部内容，“导出…”则是存成文件。不用网页界面的话：
 
 ```sh
-cellglide status
-logread -e cellglide -e hev | tail -n 30
-cat /etc/openwrt_release
-apk info -v 2>/dev/null | grep -E "cellglide|hev|kmod-tun" || opkg list-installed | grep -E "cellglide|hev|kmod-tun"
-cat /proc/sys/net/ipv6/conf/all/disable_ipv6 /proc/sys/net/ipv6/conf/default/disable_ipv6
+cellglide diag send        # 最近 24 小时；最近 7 天用 cellglide diag send week
+cellglide diag             # 只显示报告，不发送
 ```
+
+报告里有 CellGlide 的状态、设置和日志，OpenWrt 版本、软件包版本，以及网络检查（IPv6、TUN、路由、防火墙、LuCI 的 RPC 地址）。设备名、主机名、MAC 地址、网址和邮箱地址会在路由器上先去掉，IP 地址只保留第一段，然后才发送。路由器的日志存在内存里，所以报告只包含上次重启以来的记录，大多数路由器远存不到 7 天。发送需要支持 HTTPS 的 `curl` 或 `uclient-fetch`，OpenWrt 固件都自带。
 
 ## 卸载
 

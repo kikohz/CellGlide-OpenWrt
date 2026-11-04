@@ -323,3 +323,90 @@ msgstr "状态"
 msgid "%d chosen device"
 msgid_plural "%d chosen devices"
 msgstr[0] "%d 台被选设备"
+
+msgid "%d bytes"
+msgstr "%d 字节"
+
+msgid "%d KB"
+msgstr "%d KB"
+
+msgid "Too many reports from this network. Try again in a minute."
+msgstr "这个网络发送的报告太多了，请一分钟后再试。"
+
+msgid "Couldn't reach the CellGlide server. Check that this router is online, or use Export and send us the file."
+msgstr "连不上 CellGlide 服务器。请检查路由器能否上网，或者用“导出”把文件发给我们。"
+
+msgid "This router can't send over HTTPS: neither curl nor uclient-fetch is installed. Use Export and send us the file."
+msgstr "这台路由器无法通过 HTTPS 发送：curl 和 uclient-fetch 都没有安装。请用“导出”把文件发给我们。"
+
+msgid "Couldn't send. Try again later, or use Export and send us the file."
+msgstr "发送失败。请稍后再试，或者用“导出”把文件发给我们。"
+
+msgid "Last 24 hours"
+msgstr "最近 24 小时"
+
+msgid "Last 7 days"
+msgstr "最近 7 天"
+
+msgid "Optional"
+msgstr "选填"
+
+msgid "Send"
+msgstr "发送"
+
+msgid "Export log"
+msgstr "导出日志"
+
+msgid "Saves the last 24 hours as a file on this computer, redacted the same way as a report you send."
+msgstr "把最近 24 小时的内容存成文件保存到这台电脑上，脱敏方式和发送的报告一样。"
+
+msgid "Export…"
+msgstr "导出…"
+
+msgid "Send diagnostics"
+msgstr "发送诊断信息"
+
+msgid "This sends CellGlide's status, settings and log, with device names and web addresses removed and IP addresses shortened to their first part. Nothing is uploaded until you click Send."
+msgstr "会发送 CellGlide 的状态、设置和日志，其中设备名和网址会去掉，IP 地址只保留第一段。点“发送”之前不会上传任何内容。"
+
+msgid "Time range"
+msgstr "时间范围"
+
+msgid "The router keeps its log in memory: it starts over when the router restarts, and usually holds much less than 7 days."
+msgstr "路由器的日志存在内存里：重启后会清空，通常也存不了 7 天那么久。"
+
+msgid "Email"
+msgstr "邮箱"
+
+msgid "What happened"
+msgstr "发生了什么"
+
+msgid "View contents…"
+msgstr "查看内容…"
+
+msgid "The report could not be made. Check the system log for cellglide."
+msgstr "生成报告失败。请在系统日志里查看 cellglide 的记录。"
+
+msgid "What will be sent"
+msgstr "将要发送的内容"
+
+msgid "%s in total."
+msgstr "共 %s。"
+
+msgid "Close"
+msgstr "关闭"
+
+msgid "Sending…"
+msgstr "正在发送…"
+
+msgid "Sent. Report code: %s"
+msgstr "已发送。报告编号：%s"
+
+msgid "Just send us this code."
+msgstr "把这个编号告诉我们就行。"
+
+msgid "Still sending. Try again later, or use Export and send us the file."
+msgstr "还在发送中。请稍后再试，或者用“导出”把文件发给我们。"
+
+msgid "Diagnostics"
+msgstr "诊断"

@@ -43,11 +43,12 @@ After installing, the service is enabled and started. Check it with `cellglide s
 
 ## Web interface
 
-With `luci-app-cellglide` installed, the router's admin pages have three pages under Services › CellGlide:
+With `luci-app-cellglide` installed, the router's admin pages have four pages under Services › CellGlide:
 
 - **Status**: whether the iPhone is connected and in use, whether UDP works, and the exit IP. When the iPhone can't be used, it says why and what to do (not plugged in, not paired, not sharing).
 - **Devices**: the devices on the router (from the DHCP leases), each with a "through iPhone" switch and an optional name. You can also send every device through the iPhone at once, or add a device that isn't in the list by hand. Click "Save & Apply" when done. To remove a device you added by hand, clear its name, untick it and save.
 - **Settings**: the on/off switch, whether chosen devices go back to broadband or are blocked when the iPhone is unavailable, DNS, the pairing button, and under Advanced the ports and the name shown on the iPhone.
+- **Diagnostics**: sends a redacted report to CellGlide when something isn't working, or saves it as a file. See [Troubleshooting](#troubleshooting).
 
 Everything the commands below do can also be done in the web interface.
 
@@ -171,15 +172,14 @@ uci commit luci
 
 To undo it, set it back to `/ubus/`. This is a LuCI-wide setting on GL.iNet firmware, not something CellGlide changes. Reported on a GL.iNet MT3000 with firmware 4.11.0-op25 (OpenWrt 25.12.6).
 
-When reporting a problem, include the output of:
+**Reporting a problem**: open Services › CellGlide › Diagnostics, describe what happened (and leave an email if you'd like a reply), then click Send. You get a report code such as `CG-7K3P9`; send us that code. "View contents…" shows exactly what is sent, and "Export…" saves it as a file instead. Without the web interface:
 
 ```sh
-cellglide status
-logread -e cellglide -e hev | tail -n 30
-cat /etc/openwrt_release
-apk info -v 2>/dev/null | grep -E "cellglide|hev|kmod-tun" || opkg list-installed | grep -E "cellglide|hev|kmod-tun"
-cat /proc/sys/net/ipv6/conf/all/disable_ipv6 /proc/sys/net/ipv6/conf/default/disable_ipv6
+cellglide diag send        # the last 24 hours; "cellglide diag send week" for 7 days
+cellglide diag             # only prints the report, sends nothing
 ```
+
+The report holds CellGlide's status, settings and log, the OpenWrt version, package versions and network checks (IPv6, TUN, routes, firewall, LuCI's RPC address). Device names, host names, MAC addresses, web addresses and email addresses are taken out and IP addresses are cut to their first part, on the router, before anything is sent. The router keeps its log in memory, so the report only covers the time since the last restart, and on most routers much less than 7 days. Sending needs `curl` or `uclient-fetch` with HTTPS, which OpenWrt images include.
 
 ## Uninstall
 

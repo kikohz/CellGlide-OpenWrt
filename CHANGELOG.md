@@ -1,5 +1,13 @@
 # Changelog / 更新记录
 
+## Unreleased
+
+- Diagnostics, as on the Mac: Services › CellGlide › Diagnostics sends CellGlide's status, settings, log and network checks to CellGlide and gives you a report code, or saves them as a file. Names, MAC, web and email addresses are removed and IP addresses shortened on the router before anything is sent. From the command line: `cellglide diag` and `cellglide diag send`.
+- Fixed: opening the Settings page could leave every LuCI page on "Loading view…" while the iPhone was slow to answer, because checking the pairing held up rpcd. It now uses what the service last found.
+
+- 和 Mac 一样的诊断功能：“服务 › CellGlide › 诊断”可以把 CellGlide 的状态、设置、日志和网络检查发给 CellGlide 并给出报告编号，也可以存成文件。发送前先在路由器上去掉名字、MAC 地址、网址和邮箱，IP 地址只保留第一段。命令行：`cellglide diag` 和 `cellglide diag send`。
+- 修复：iPhone 响应慢时，打开设置页可能让所有 LuCI 页面停在“加载视图中”，因为检查配对会卡住 rpcd。现在改用后台服务最近一次的检查结果。
+
 ## 0.2.1 — 2026-10-22
 
 Packages: `cellglide` 0.2.1-r1, `luci-app-cellglide` 0.2.1-r1.

@@ -33,5 +33,13 @@
 			"type": "view",
 			"path": "cellglide/settings"
 		}
+	},
+	"admin/services/cellglide/diagnostics": {
+		"title": "Diagnostics",
+		"order": 40,
+		"action": {
+			"type": "view",
+			"path": "cellglide/diagnostics"
+		}
 	}
 }

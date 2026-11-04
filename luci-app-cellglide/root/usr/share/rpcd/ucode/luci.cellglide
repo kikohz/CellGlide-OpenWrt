@@ -1,11 +1,16 @@
-// rpcd plugin behind the CellGlide pages: status for the overview, pairing and starting
-// the service. Everything else (devices, settings) goes through LuCI's own UCI calls.
+// rpcd plugin behind the CellGlide pages: status for the overview, pairing, starting the
+// service and the diagnostics report. Everything else (devices, settings) goes through
+// LuCI's own UCI calls.
 'use strict';
 
-import { readfile, popen } from 'fs';
+import { readfile, writefile, popen, mkdir, unlink } from 'fs';
 import { cursor } from 'uci';
 
 const ubus = require('ubus').connect();
+
+// Where a diagnostics report waits while it is sent; only root can read it.
+const DIAG = '/tmp/cellglide-diag';
+const DIAG_TOOL = '/usr/libexec/cellglide/diag';
 
 // The daemon's status file: key='value' lines with quotes and line breaks already removed.
 function read_status() {
@@ -29,6 +34,21 @@ function run(command) {
 		return { code: -1, output: '' };
 	const output = fd.read('all');
 	return { code: fd.close(), output: trim(output ?? '') };
+}
+
+// The report for these arguments, contact included, as its JSON text; null if it failed.
+// Fast: it reads files, the log and a few commands, and never talks to the iPhone.
+function diag_report(args) {
+	mkdir(DIAG, 0700);
+	const range = args?.range == 'week' ? 'week' : 'day';
+	writefile(DIAG + '/contact.json', sprintf('%J', {
+		email: substr('' + (args?.email ?? ''), 0, 400),
+		note: substr('' + (args?.note ?? ''), 0, 8000)
+	}));
+	const result = run(DIAG_TOOL + ' bundle ' + range + ' ' + DIAG + '/contact.json');
+	unlink(DIAG + '/contact.json');
+	try { json(result.output); } catch (e) { return null; }
+	return result.code == 0 ? result.output : null;
 }
 
 const methods = {
@@ -85,6 +105,45 @@ const methods = {
 		call: function() {
 			const result = run('idevicepair pair');
 			return { ok: result.code == 0, output: result.output };
+		}
+	},
+
+	// The diagnostics report, for the page to show or save; nothing is sent.
+	diag: {
+		args: { range: 'day', email: '', note: '' },
+		call: function(request) {
+			const report = diag_report(request.args);
+			return report ? { report: report } : { error: 'failed' };
+		}
+	},
+
+	// Sends the report in the background: the upload can take up to 30 seconds, and rpcd
+	// serves every LuCI request in one loop. The page asks diag_result until it's done.
+	diag_send: {
+		args: { range: 'day', email: '', note: '' },
+		call: function(request) {
+			const report = diag_report(request.args);
+			if (!report)
+				return { error: 'failed' };
+			writefile(DIAG + '/report.json', report);
+			writefile(DIAG + '/result.json', '{"state":"sending"}');
+			system('(' + DIAG_TOOL + ' send ' + DIAG + '/report.json >' + DIAG + '/result.tmp; mv ' +
+				DIAG + '/result.tmp ' + DIAG + '/result.json; rm -f ' + DIAG + '/report.json)' +
+				' </dev/null >/dev/null 2>&1 &');
+			return { ok: true };
+		}
+	},
+
+	diag_result: {
+		call: function() {
+			let result = null;
+			try { result = json(readfile(DIAG + '/result.json') ?? 'null'); } catch (e) { result = null; }
+			if (!result)
+				return { state: 'none' };
+			if (result.state == 'sending')
+				return { state: 'sending' };
+			return result.code ? { state: 'sent', code: result.code }
+				: { state: 'failed', error: result.error ?? 'bad-reply', status: result.status ?? 0 };
 		}
 	},
 
