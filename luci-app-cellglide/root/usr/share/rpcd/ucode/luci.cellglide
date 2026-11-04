@@ -60,14 +60,23 @@ const methods = {
 		}
 	},
 
-	// Whether this router is trusted by the attached iPhone; slow-ish, so only on request.
+	// Whether the attached iPhone trusts this router, as the daemon last found. Running
+	// idevicepair here would hold up rpcd, and every LuCI request with it, for as long as
+	// the phone takes to answer, leaving other pages on "Loading view…".
 	paired: {
 		call: function() {
-			const device = read_status().device;
-			// A UDID is hex digits and hyphens; anything else never reaches the shell.
-			if (!match(device ?? '', /^[0-9A-Fa-f-]{20,48}$/))
+			const status = read_status();
+			if (!status.device)
 				return { device: false, paired: false };
-			return { device: true, paired: run('idevicepair -u ' + device + ' validate').code == 0 };
+			// The daemon validates only when the phone doesn't answer; when it does, the
+			// phone's name (which an unpaired phone won't tell) says whether it's paired.
+			let paired;
+			switch (status.reason) {
+			case 'not-paired': paired = false; break;
+			case 'not-sharing': paired = true; break;
+			default: paired = !!status.name;
+			}
+			return { device: true, paired: paired };
 		}
 	},
 
