@@ -450,6 +450,18 @@ msgstr "被选设备使用 iPhone 上网时，地图才会显示流量。"
 msgid "No traffic through the iPhone yet."
 msgstr "还没有经过 iPhone 的流量。"
 
+msgid "Nothing is moving data right now."
+msgstr "现在没有正在传输的连接。"
+
+msgid "Showing the totals since %s."
+msgstr "显示自 %s 连接以来的总计。"
+
+msgid "Globe"
+msgstr "地球"
+
+msgid "Flat map (experimental)"
+msgstr "平面地图（实验）"
+
 msgid "Region"
 msgstr "地区"
 

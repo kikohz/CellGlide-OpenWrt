@@ -1,0 +1,217 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<!-- Light or dark as the page around it (?look=light, then setAppearance; see globe.html). -->
+<meta name="color-scheme" content="dark">
+<script>
+  if (new URLSearchParams(location.search).get('look') === 'light') {
+    document.documentElement.className = 'light';
+    document.querySelector('meta[name=color-scheme]').content = 'light';
+  }
+</script>
+<style>
+  html, body { margin: 0; height: 100%; background: #09090b; }
+  html.light, html.light body { background: #f5f5f7; }
+  html, body { overflow: hidden; -webkit-user-select: none; user-select: none; }
+  body { display: flex; align-items: center; justify-content: center; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="map"></canvas>
+<script>
+// The traffic map flat (experimental): the countries on an equirectangular map, with the
+// same calls as globe.html — setData({exit, places}), focusPlace(lat, lon), setPaused(bool) —
+// so the page can show either.
+// The countries are drawn once per size; each frame copies them and draws the arcs, markers
+// and flowing data on top. 30 frames a second, nothing while paused or hidden, and with
+// Reduce Motion only when something changes. setAppearance(dark) switches between the
+// Mac's light and dark looks.
+(() => {
+  // Natural Earth's 1:50m countries (public domain), simplified by scripts/world-outlines.py:
+  // one string per ring, tenths of a degree, each point the difference from the one before.
+  const WORLD = 'world.json';
+  // Shown from 80° N to 58° S, as flat world maps usually are: no polar ice. map.js sizes
+  // the frame to match: 360 by 138.
+  const NORTH = 80, SOUTH = -58;
+
+  const canvas = document.getElementById('map');
+  const context = canvas.getContext('2d');
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let state = { exit: null, places: [] };
+  let land = null, base = null, width = 0, height = 0;
+  const live = () => state.places.filter(p => p.active !== false);
+  let dark = document.documentElement.className !== 'light';
+  // The globe's colours (see globe.html): pale data on the dark map, the system blue and
+  // green on the light one.
+  const looks = {
+    dark: { land: '#20242e', border: 'rgba(150, 160, 185, 0.35)', blue: '64, 140, 255', exit: '77, 217, 128',
+            down: '150, 200, 255', up: '120, 230, 160', ring: '255, 255, 255', glow: 0.45 },
+    light: { land: '#dfe2e8', border: 'rgba(70, 80, 100, 0.35)', blue: '0, 122, 255', exit: '40, 205, 65',
+             down: '0, 122, 255', up: '40, 205, 65', ring: '0, 0, 0', glow: 0.3 },
+  };
+  const look = () => dark ? looks.dark : looks.light;
+
+  // Where a latitude and longitude fall in the canvas (device pixels).
+  const at = (lat, lon) => ({ x: (lon + 180) / 360 * width, y: (NORTH - lat) / (NORTH - SOUTH) * height });
+
+  // The arc from the exit to a place: a quadratic curve bowed upwards by a share of its length,
+  // as the globe's arcs lift off the surface.
+  function curve(from, to) {
+    const a = at(from.lat, from.lon), b = at(to.lat, to.lon);
+    const length = Math.hypot(b.x - a.x, b.y - a.y);
+    return { a, b, c: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 - Math.min(length * 0.3, height * 0.35) } };
+  }
+  const point = (k, t) => {
+    const u = 1 - t;
+    return { x: u * u * k.a.x + 2 * u * t * k.c.x + t * t * k.b.x, y: u * u * k.a.y + 2 * u * t * k.c.y + t * t * k.b.y };
+  };
+
+  function loadLand() {
+    fetch(WORLD).then(r => r.ok ? r.json() : Promise.reject()).then(rings => {
+      land = rings.map(text => {
+        const numbers = text.split(' ').map(Number), ring = new Float32Array(numbers.length);
+        let lon = 0, lat = 0;
+        for (let i = 0; i < numbers.length; i += 2) {
+          lon += numbers[i]; lat += numbers[i + 1];
+          ring[i] = lon / 10; ring[i + 1] = lat / 10;
+        }
+        return ring;
+      });
+      base = null;
+      wake(true);
+    }).catch(() => {});
+  }
+
+  // The countries, filled, with their borders: drawn once for this size.
+  function drawBase() {
+    base = document.createElement('canvas');
+    base.width = width; base.height = height;
+    const c = base.getContext('2d'), shape = new Path2D();
+    for (const ring of land) {
+      for (let i = 0; i < ring.length; i += 2) {
+        const p = at(ring[i + 1], ring[i]);
+        if (i) shape.lineTo(p.x, p.y); else shape.moveTo(p.x, p.y);
+      }
+      shape.closePath();
+    }
+    c.fillStyle = look().land;
+    c.fill(shape);
+    c.strokeStyle = look().border;
+    c.lineWidth = 0.6 * dpr;
+    c.lineJoin = 'round';
+    c.stroke(shape);
+  }
+
+  function marker(p, radius, rgb, alpha) {
+    const glow = context.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius * 2.6);
+    glow.addColorStop(0, `rgba(${rgb}, ${look().glow * alpha})`);
+    glow.addColorStop(1, `rgba(${rgb}, 0)`);
+    context.fillStyle = glow;
+    context.beginPath(); context.arc(p.x, p.y, radius * 2.6, 0, Math.PI * 2); context.fill();
+    context.fillStyle = `rgba(${rgb}, ${alpha})`;
+    context.beginPath(); context.arc(p.x, p.y, radius, 0, Math.PI * 2); context.fill();
+  }
+
+  // Data along an arc, as on the globe: comets of dots, `phase` keeping arcs out of step.
+  function stream(k, reverse, now, period, packets, phase, rgb, radius, brightness) {
+    for (let n = 0; n < packets; n++) {
+      const head = ((now / period) + n / packets + phase) % 1;
+      for (let tail = 0; tail < 7; tail++) {
+        const t = head - tail * 0.018;
+        if (t < 0) break;
+        const p = point(k, reverse ? 1 - t : t);
+        context.fillStyle = `rgba(${rgb}, ${(0.95 - tail * 0.13) * brightness})`;
+        context.beginPath();
+        context.arc(p.x, p.y, (radius - tail * radius * 0.11) * dpr, 0, Math.PI * 2);
+        context.fill();
+      }
+    }
+  }
+
+  let focus = null;
+  function draw(now) {
+    const w = Math.round(canvas.clientWidth * dpr), h = Math.round(canvas.clientHeight * dpr);
+    if (!w || !h) return;
+    if (w !== width || h !== height) { width = canvas.width = w; height = canvas.height = h; base = null; }
+    if (!land) return;
+    if (!base) drawBase();
+    context.clearRect(0, 0, width, height);
+    context.drawImage(base, 0, 0);
+
+    const exit = state.exit, places = live();
+    // Arcs under the markers, busier ones a little brighter and wider.
+    if (exit)
+      for (const place of places) {
+        const k = curve(exit, place);
+        context.strokeStyle = `rgba(${look().blue}, ${0.35 + 0.4 * place.weight})`;
+        context.lineWidth = (0.8 + 1.2 * place.weight) * dpr;
+        context.beginPath(); context.moveTo(k.a.x, k.a.y); context.quadraticCurveTo(k.c.x, k.c.y, k.b.x, k.b.y); context.stroke();
+      }
+    for (const place of state.places)
+      marker(at(place.lat, place.lon), (1.6 + 3.2 * place.weight) * dpr, look().blue, place.active === false ? 0.45 : 1);
+    if (exit) marker(at(exit.lat, exit.lon), 4.2 * dpr, look().exit, 1);
+
+    // Downloads come in from each place, blue and brisk; uploads go out, green and slower.
+    if (exit && !reduceMotion)
+      for (const place of places) {
+        const k = curve(exit, place), period = 3200 - 1600 * place.weight;
+        stream(k, true, now, period, 1 + Math.round(2 * place.weight), place.weight * 0.37,
+               look().down, 2.6, 0.55 + 0.45 * place.weight);
+        stream(k, false, now, period * 2.4, 1, place.weight * 0.61 + 0.5,
+               look().up, 2.0, 0.35 + 0.35 * place.weight);
+      }
+
+    // A tapped row: a ring that spreads from its place and fades.
+    if (focus) {
+      const age = (now - focus.started) / 1400;
+      if (age >= 1) focus = null;
+      else {
+        const p = at(focus.lat, focus.lon);
+        context.strokeStyle = `rgba(${look().ring}, ${0.8 * (1 - age)})`;
+        context.lineWidth = 1.5 * dpr;
+        context.beginPath(); context.arc(p.x, p.y, (4 + 22 * age) * dpr, 0, Math.PI * 2); context.stroke();
+      }
+    }
+  }
+
+  let paused = false, scheduled = false, last = 0, changed = true;
+  function wake(change) {
+    if (change) changed = true;
+    if (scheduled || paused || document.hidden) return;
+    scheduled = true;
+    requestAnimationFrame(frame);
+  }
+  function frame(now) {
+    scheduled = false;
+    if (paused || document.hidden) return;
+    if (now - last < 30) { wake(); return; }
+    last = now;
+    const moving = !reduceMotion && state.exit && live().length;
+    if (changed || moving || focus) { draw(now); changed = false; }
+    // Nothing flows and no ring spreads: the next frame waits for a change.
+    if (moving || focus) wake();
+  }
+
+  window.setPaused = value => { paused = !!value; wake(true); };
+  window.focusPlace = (lat, lon) => { focus = { lat, lon, started: performance.now() }; wake(true); };
+  window.setData = data => { state = data; wake(true); };
+  window.setAppearance = value => {
+    if (!!value === dark) return;
+    dark = !!value;
+    document.documentElement.className = dark ? '' : 'light';
+    document.querySelector('meta[name=color-scheme]').content = dark ? 'dark' : 'light';
+    base = null;
+    wake(true);
+  };
+  document.addEventListener('visibilitychange', () => wake(true));
+  let resizing = null;
+  window.addEventListener('resize', () => { clearTimeout(resizing); resizing = setTimeout(() => wake(true), 150); });
+  loadLand();
+})();
+</script>
+</body>
+</html>

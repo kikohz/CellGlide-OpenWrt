@@ -449,6 +449,18 @@ msgstr ""
 msgid "No traffic through the iPhone yet."
 msgstr ""
 
+msgid "Nothing is moving data right now."
+msgstr ""
+
+msgid "Showing the totals since %s."
+msgstr ""
+
+msgid "Globe"
+msgstr ""
+
+msgid "Flat map (experimental)"
+msgstr ""
+
 msgid "Region"
 msgstr ""
 

@@ -3,11 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<!-- Dark, as the square it sits on: an iframe whose color scheme differs from the page's
-     (a dark LuCI theme) gets an opaque white background. -->
+<!-- Light or dark as the page around it (?look=light, then setAppearance): it paints its own
+     background, as an iframe whose color scheme differs from the page's gets an opaque one. -->
 <meta name="color-scheme" content="dark">
+<script>
+  // Before the first paint, so a light page never flashes a dark square.
+  if (new URLSearchParams(location.search).get('look') === 'light') {
+    document.documentElement.className = 'light';
+    document.querySelector('meta[name=color-scheme]').content = 'light';
+  }
+</script>
 <style>
-  html, body { margin: 0; height: 100%; background: #09090b; overflow: hidden; -webkit-user-select: none; user-select: none; }
+  html, body { margin: 0; height: 100%; background: #09090b; }
+  html.light, html.light body { background: #f5f5f7; }
+  html, body { overflow: hidden; -webkit-user-select: none; user-select: none; }
   body { display: flex; align-items: center; justify-content: center; }
   .stage { position: relative; width: min(100vw, 100vh); height: min(100vw, 100vh); }
   .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
@@ -25,6 +34,7 @@
 // rotates it. Places with `active: false` (nothing moving now) keep their marker but lose
 // their arc. Draws at 30 frames a second (60 while dragged), stops while setPaused(true) or
 // the page is hidden, and with Reduce Motion on draws only when something changes.
+// setAppearance(dark) switches it to the Mac's light or dark look.
 (() => {
   const canvas = document.getElementById('globe');
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -36,6 +46,17 @@
   const size = () => Math.round(canvas.getBoundingClientRect().width * dpr);
   const live = () => state.places.filter(p => p.active !== false);
   const blue = [0.25, 0.55, 1], green = [0.3, 0.85, 0.5];
+  let dark = document.documentElement.className !== 'light';
+  // As on the Mac: light dots on a dark sphere, or COBE's light mode, dark dots on a pale one;
+  // the flowing data pale on the dark globe, the system blue and green on the light one.
+  const looks = {
+    dark: { dark: 1, mapBrightness: 5, baseColor: [0.22, 0.22, 0.26], glowColor: [0.14, 0.16, 0.22],
+            down: '150, 200, 255', up: '120, 230, 160' },
+    // The Mac's 0.6 leaves the land too faint on a browser's pale sphere: 1.5.
+    light: { dark: 0, mapBrightness: 1.5, baseColor: [1, 1, 1], glowColor: [0.8, 0.8, 0.83],
+             down: '0, 122, 255', up: '40, 205, 65' },
+  };
+  const look = () => dark ? looks.dark : looks.light;
 
   function options() {
     const markers = state.places.map(p => ({ location: [p.lat, p.lon], size: 0.025 + 0.06 * p.weight, color: blue, id: p.id }));
@@ -52,8 +73,8 @@
     globe?.destroy();
     globe = createGlobe(canvas, {
       devicePixelRatio: dpr, width: s, height: s, phi, theta,
-      dark: 1, diffuse: 1.2, mapSamples: 16000, mapBrightness: 5, mapBaseBrightness: 0.02,
-      baseColor: [0.22, 0.22, 0.26], markerColor: blue, glowColor: [0.14, 0.16, 0.22],
+      dark: look().dark, diffuse: 1.2, mapSamples: 16000, mapBrightness: look().mapBrightness, mapBaseBrightness: 0.02,
+      baseColor: look().baseColor, markerColor: blue, glowColor: look().glowColor,
       arcColor: blue, arcWidth: 0.6, arcHeight: ARC_HEIGHT, markerElevation: ELEVATION,
       // As on the Mac: larger than COBE's 1, the glow's edge still inside the square.
       scale: 1.1,
@@ -127,9 +148,9 @@
       const target = toPoint(place.lat, place.lon);
       const period = 3200 - 1600 * place.weight;          // ms for one trip
       stream(target, exit, now, period, 1 + Math.round(2 * place.weight), place.weight * 0.37,
-             '150, 200, 255', 2.6, 0.55 + 0.45 * place.weight);
+             look().down, 2.6, 0.55 + 0.45 * place.weight);
       stream(exit, target, now, period * 2.4, 1, place.weight * 0.61 + 0.5,
-             '120, 230, 160', 2.0, 0.35 + 0.35 * place.weight);
+             look().up, 2.0, 0.35 + 0.35 * place.weight);
     }
   }
 
@@ -157,6 +178,15 @@
     if (!reduceMotion || dragging) wake();
   }
   window.setPaused = value => { paused = !!value; wake(); };
+  // COBE takes its colours when it is made: a new look rebuilds it.
+  window.setAppearance = value => {
+    if (!!value === dark) return;
+    dark = !!value;
+    document.documentElement.className = dark ? '' : 'light';
+    document.querySelector('meta[name=color-scheme]').content = dark ? 'dark' : 'light';
+    built = 0; flowing = true;
+    start();
+  };
   document.addEventListener('visibilitychange', wake);
 
   canvas.addEventListener('pointerdown', e => { dragging = { x: e.clientX, y: e.clientY, phi, theta }; canvas.setPointerCapture(e.pointerId); wake(); });

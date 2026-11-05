@@ -222,6 +222,11 @@ var Places = baseclass.extend({
 		return shown;
 	},
 
+	// True until a second refresh gives the first rates: nothing can be called quiet yet.
+	measuring: function() {
+		return this.samples.length < 2;
+	},
+
 	reset: function() {
 		this.samples = [];
 	}
