@@ -113,12 +113,13 @@ Database.prototype = {
 };
 
 // Unpacks the raw-deflate file the router keeps. Needs DecompressionStream (Chrome 80,
-// Safari 16.4, Firefox 113).
+// Safari 16.4, Firefox 113). The browser's Response, by name: in a LuCI module the bare
+// name is LuCI's own request reply.
 function inflate(buffer) {
 	if (typeof DecompressionStream != 'function')
 		return Promise.reject(new Error('unsupported'));
 	var stream = new Blob([ buffer ]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
-	return new Response(stream).arrayBuffer();
+	return new window.Response(stream).arrayBuffer();
 }
 
 // The busiest places drawn and listed, as on the Mac and iPhone.

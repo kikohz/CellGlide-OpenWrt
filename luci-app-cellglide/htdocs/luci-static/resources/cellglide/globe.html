@@ -3,8 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<!-- Dark, as the square it sits on: an iframe whose color scheme differs from the page's
+     (a dark LuCI theme) gets an opaque white background. -->
+<meta name="color-scheme" content="dark">
 <style>
-  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; -webkit-user-select: none; user-select: none; }
+  html, body { margin: 0; height: 100%; background: #09090b; overflow: hidden; -webkit-user-select: none; user-select: none; }
   body { display: flex; align-items: center; justify-content: center; }
   .stage { position: relative; width: min(100vw, 100vh); height: min(100vw, 100vh); }
   .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
