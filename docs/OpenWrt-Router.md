@@ -17,20 +17,20 @@ Devices you haven't chosen are not affected, and the router's own traffic never 
 
 ## Install
 
-Download the packages from [GitHub Releases](https://github.com/kikohz/CellGlide-OpenWrt/releases) (`v0.2.1`): `cellglide` is the service, and `luci-app-cellglide` is the web interface in the router's admin pages (you can install only the first if you don't want the web interface). Copy them to `/tmp` on the router, then install.
+Download the packages from [GitHub Releases](https://github.com/kikohz/CellGlide-OpenWrt/releases) (`v0.3.0`): `cellglide` is the service, and `luci-app-cellglide` is the web interface in the router's admin pages (you can install only the first if you don't want the web interface). Copy them to `/tmp` on the router, then install.
 
 OpenWrt 25.12 (`apk`):
 
 ```sh
 apk update
-apk add --allow-untrusted ./cellglide-0.2.1-r1.apk ./luci-app-cellglide-0.2.1-r1.apk
+apk add --allow-untrusted ./cellglide-0.3.0-r1.apk ./luci-app-cellglide-0.3.0-r1.apk
 ```
 
 OpenWrt 24.10 (`opkg`):
 
 ```sh
 opkg update
-opkg install ./cellglide_0.2.1-r1_all.ipk ./luci-app-cellglide_0.2.1-r1_all.ipk
+opkg install ./cellglide_0.3.0-r1_all.ipk ./luci-app-cellglide_0.3.0-r1_all.ipk
 ```
 
 The dependencies come from the official feeds during install: `usbmuxd`, `libusbmuxd-utils`, `libimobiledevice-utils`, `hev-socks5-tunnel`, `kmod-tun`, `ucode`, `ucode-mod-socket`. That's why you run `update` first, and why the router needs to be online.

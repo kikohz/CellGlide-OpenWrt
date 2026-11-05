@@ -217,8 +217,9 @@ function environment() {
 		: run('opkg list-installed | grep -E "cellglide|hev|kmod-tun|usbmuxd|imobiledevice|ucode|uclient|curl|ustream"');
 	return {
 		'Firewall': run('nft list table inet cellglide'),
-		'IPv6': 'all.disable_ipv6=' + trim(readfile('/proc/sys/net/ipv6/conf/all/disable_ipv6') ?? '?') +
-			' default.disable_ipv6=' + trim(readfile('/proc/sys/net/ipv6/conf/default/disable_ipv6') ?? '?'),
+		// No dots in the labels: "all.disable_ipv6" would be taken for a domain and removed.
+		'IPv6': 'disable_ipv6 all=' + trim(readfile('/proc/sys/net/ipv6/conf/all/disable_ipv6') ?? '?') +
+			' default=' + trim(readfile('/proc/sys/net/ipv6/conf/default/disable_ipv6') ?? '?'),
 		'Kernel': run('uname -a'),
 		'LuCI': 'ubuspath=' + (uci.get('luci', 'main', 'ubuspath') ?? '(default)') +
 			'\n' + trim(readfile('/usr/lib/lua/luci/version.lua') ?? readfile('/usr/share/ucode/luci/version.uc') ?? ''),

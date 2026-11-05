@@ -8,7 +8,7 @@ LUCI_PKGARCH:=all
 # cobe.js (the globe) ships already minified; jsmin would only risk breaking it.
 LUCI_MINIFY_JS:=0
 
-PKG_VERSION:=0.2.1
+PKG_VERSION:=0.3.0
 PKG_RELEASE:=1
 
 PKG_MAINTAINER:=kikohz <kikohz@gmail.com>

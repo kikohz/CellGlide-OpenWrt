@@ -17,20 +17,20 @@
 
 ## 安装
 
-先到 [GitHub Releases](https://github.com/kikohz/CellGlide-OpenWrt/releases) 页面（`v0.2.1`）下载安装包：`cellglide` 是后台服务，`luci-app-cellglide` 是路由器后台里的网页界面（不需要网页界面的话可以只装第一个）。传到路由器的 `/tmp`，再安装。
+先到 [GitHub Releases](https://github.com/kikohz/CellGlide-OpenWrt/releases) 页面（`v0.3.0`）下载安装包：`cellglide` 是后台服务，`luci-app-cellglide` 是路由器后台里的网页界面（不需要网页界面的话可以只装第一个）。传到路由器的 `/tmp`，再安装。
 
 OpenWrt 25.12（`apk`）：
 
 ```sh
 apk update
-apk add --allow-untrusted ./cellglide-0.2.1-r1.apk ./luci-app-cellglide-0.2.1-r1.apk
+apk add --allow-untrusted ./cellglide-0.3.0-r1.apk ./luci-app-cellglide-0.3.0-r1.apk
 ```
 
 OpenWrt 24.10（`opkg`）：
 
 ```sh
 opkg update
-opkg install ./cellglide_0.2.1-r1_all.ipk ./luci-app-cellglide_0.2.1-r1_all.ipk
+opkg install ./cellglide_0.3.0-r1_all.ipk ./luci-app-cellglide_0.3.0-r1_all.ipk
 ```
 
 安装时会顺带从官方源装好依赖：`usbmuxd`、`libusbmuxd-utils`、`libimobiledevice-utils`、`hev-socks5-tunnel`、`kmod-tun`、`ucode`、`ucode-mod-socket`。所以安装前要先 `update`，路由器也要能上网。
